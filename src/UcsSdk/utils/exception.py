@@ -21,7 +21,7 @@ class UcsWrapperException(BaseException):
     pass
 
 
-class UcsLoginError(BaseException):
+class UcsLoginError(UcsWrapperException):
     """LoginFailure Error"""
     message = 'Authentication failed'
 
@@ -29,13 +29,13 @@ class UcsLoginError(BaseException):
         super(UcsLoginError, self).__init__(message)
 
 
-class UcsConnectionError(BaseException):
+class UcsConnectionError(UcsWrapperException):
     """ Cannot connect to UCS Manager. """
     def __init__(self, message, error):
         message = 'Service unavailable, failed with error: %(error)s'
         super(UcsConnectionError, self).__init__(message)
 
-class UcsOperationError(BaseException):
+class UcsOperationError(UcsWrapperException):
     """ Configuration Error. """
     def __init__(self, operation, error):
         message = _("%(operation)s failed, error: %(error)s")
