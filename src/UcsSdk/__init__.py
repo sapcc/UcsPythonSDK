@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+__import__('pkg_resources').declare_namespace(__name__)
 from MoMeta import _VersionMeta,_ManagedObjectMeta
 from MethodMeta import _MethodFactoryMeta
 from Constants import *
