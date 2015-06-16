@@ -42,7 +42,6 @@ setup(
 	license='LICENSE.txt',
 	packages=find_packages('src'),
 	package_dir = {'': 'src'},
-	namespace_packages=['UcsSdk'],
 	package_data={'': ['resources/*.xml']},
 	include_package_data = True,
 	zip_safe = False,
