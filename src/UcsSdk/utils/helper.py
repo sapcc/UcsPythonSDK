@@ -98,23 +98,9 @@ def config_managed_object(p_dn, p_class_id, class_id,
         handle = self.handle
 
     try:
-        res = handle.GetManagedObject(None, p_class_id, {"Dn": p_dn},
-                                      dumpXml=YesOrNo.TRUE)
-        mo_res = handle.GetManagedObject(res, class_id, {"Dn": mo_dn},
-                                         dumpXml=YesOrNo.TRUE)
-        result = None
-        if mo_res and class_id != LsbootPolicy.ClassId() and delete:
-            print(_("Mo exists, delete and recreate"))
-            remove_resp = handle.RemoveManagedObject(mo_res)
-            if not remove_resp:
-                print(_("Cisco client exception: "
-                    "Failed to remove ManagedObject."))
-
-        if not delete: 
-            result = handle.SetManagedObject(mo_res, class_id, mo_config,
-                                         dumpXml=YesOrNo.TRUE)
-        else:
-            result = handle.AddManagedObject(res, class_id, mo_config,
+        result = handle.AddManagedObject(None, classId=class_id,
+                                         params=mo_config,
+                                         modifyPresent=True,
                                          dumpXml=YesOrNo.TRUE)
         return result
 

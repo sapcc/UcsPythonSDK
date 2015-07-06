@@ -39,4 +39,4 @@ class UcsOperationError(UcsWrapperException):
     """ Configuration Error. """
     def __init__(self, operation, error):
         message = _("%(operation)s failed, error: %(error)s")
-        super(UcsOperationError, self).__init__()
+        super(UcsOperationError, self).__init__(message)

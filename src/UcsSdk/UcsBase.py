@@ -1,4 +1,3 @@
-
 # Copyright 2013 Cisco Systems, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,22 +13,24 @@
 
 import types
 from xml.dom.minidom import *
-from MoMeta import _VersionMeta,_ManagedObjectMeta
+from MoMeta import _VersionMeta, _ManagedObjectMeta
 from MethodMeta import _MethodFactoryMeta
 from UcsHandle import *
 from Constants import *
 
-externalMethodAttrs = [ 'errorCode', 'errorDescr', 'invocationResult', 'response']
+externalMethodAttrs = ['errorCode', 'errorDescr', 'invocationResult', 'response']
+
 
 def str_to_class(s):
 	if s in globals() and isinstance(globals()[s], types.ClassType):
 		return globals()[s]
 	return None
 
+
 class UcsBase:
 	"""
 	This is base class for ManagedObject, AbstractFilter and ExternalMethod classes.
-	
+
 	This class acts as the base class for ManagedObject, ExternalMethod and AbstractFilter classes. This class provides the basic
 	functinality to add/remove/get child managed objects or handle object.
 	"""
@@ -68,7 +69,7 @@ class UcsBase:
 		"""Method writes the xml representation for the object."""
 		ch = []
 		for c in self.child:
-			ch.append(c.WriteXml(w,option))
+			ch.append(c.WriteXml(w, option))
 		return ch
 
 	def RemoveChild(self, obj):
@@ -100,18 +101,20 @@ class UcsBase:
 		for c in self.child:
 			if c != None:
 				c.WriteObject()
-	
+
 	def Clone(self):
 		""" Method returns the clone of the Managed Object. """
 		import copy
+
 		return copy.deepcopy(self)
 
-#	def __copy__(self):
-#		return self
-#
-	def __deepcopy__(self,memo):
+	#	def __copy__(self):
+	#		return self
+	#
+	def __deepcopy__(self, memo):
 		""" Overridden method to support deepcopy of Managed Object. """
 		import copy
+
 		clone = copy.copy(self)
 		cloneChild = []
 		for c in clone.child:
@@ -119,32 +122,37 @@ class UcsBase:
 		clone.child = cloneChild
 		return clone
 
+
 class UcsError(Exception):
 	"""Base class for exceptions in Ucs module."""
 	pass
+
 
 class UcsException(UcsError):
 	def __init__(self, errorCode, errorDescr):
 		self.errorCode = errorCode
 		self.errorDescr = errorDescr
-		
+
 	def __str__(self):
-		return "[ErrorCode]: %s[ErrorDescription]: %s" %(self.errorCode, self.errorDescr)
-	
+		return "[ErrorCode]: %s[ErrorDescription]: %s" % (self.errorCode, self.errorDescr)
+
+
 class UcsValidationException(UcsError):
 	def __init__(self, errorMsg):
 		self.errorMsg = errorMsg
-	
+
 	def __str__(self):
-		return "[ErrorMessage]: %s" %(self.errorMsg)
+		return "[ErrorMessage]: %s" % (self.errorMsg)
+
 
 class AbstractFilter(UcsBase):
 	pass
 
+
 class ManagedObject(UcsBase):
 	"""This class structures/represents all the managed objects in UCS."""
 	DUMMYDIRTY = "0x1L"
-	
+
 	def __init__(self, classId):
 
 		unknownMo = False
@@ -152,7 +160,8 @@ class ManagedObject(UcsBase):
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId == None):
 			self.classId = classId
-			self.propMoMeta = UcsMoMeta(classId, classId, "", "", "InputOutput", ManagedObject.DUMMYDIRTY, [], [], [], [])
+			self.propMoMeta = UcsMoMeta(classId, classId, "", "", "InputOutput", ManagedObject.DUMMYDIRTY, [], [], [],
+										[])
 			unknownMo = True
 		else:
 			self.classId = metaClassId
@@ -175,13 +184,14 @@ class ManagedObject(UcsBase):
 			self.MarkClean()
 
 	def FilterVersion(self, version):
-		if((self.propMoMeta != None) and (version != None)):
+		if ((self.propMoMeta != None) and (version != None)):
 			if self.__dict__.has_key("XtraProperty"):
 				self._excludePropList.append("XtraProperty")
 
 			for prop in UcsUtils.GetUcsPropertyMetaAttributeList(self.classId):
 				propMeta = UcsUtils.IsPropertyInMetaIgnoreCase(self.classId, prop)
-				if((propMeta == None) or (version < propMeta.version) or (propMeta.access == UcsPropertyMeta.Internal)):
+				if ((propMeta == None) or (version < propMeta.version) or (
+							propMeta.access == UcsPropertyMeta.Internal)):
 					self._excludePropList.append(prop)
 
 		for c in self.GetChild():
@@ -190,11 +200,11 @@ class ManagedObject(UcsBase):
 	def setattr(self, key, value):
 		""" This method sets attribute of a Managed Object. """
 		if (UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId) != None):
-			if (key in _ManagedObjectMeta[self.classId].keys()):
+			if (key in _ManagedObjectMeta[self.classId]):
 				propMeta = UcsUtils.GetUcsPropertyMeta(self.classId, key)
-				
+
 				if (propMeta.ValidatePropertyValue(value) == False):
-					#print "Validation Failure"
+					# print "Validation Failure"
 					return False
 
 				if (propMeta.mask != None):
@@ -206,14 +216,15 @@ class ManagedObject(UcsBase):
 		else:
 			""" no such property """
 			self.__dict__['XtraProperty'][UcsUtils.WordU(key)] = value
-			#return None
+		# return None
 
 	def __setattr__(self, key, value):
 		""" Overridden standard setattr method. """
-		if ((key == "classId") or (UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId) == None) or (key not in _ManagedObjectMeta[self.classId].keys())):
+		if ((key == "classId") or (UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId) == None) or (
+					key not in _ManagedObjectMeta[self.classId])):
 			self.__dict__[key] = value
 			return
-		
+
 		return self.setattr(key, value)
 
 	def getattr(self, key):
@@ -223,7 +234,7 @@ class ManagedObject(UcsBase):
 
 		if UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId):
 			if self.__dict__.has_key(key):
-				if key in _ManagedObjectMeta[self.classId].keys():
+				if key in _ManagedObjectMeta[self.classId]:
 					""" property exists """
 					return self.__dict__[key]
 			else:
@@ -233,12 +244,14 @@ class ManagedObject(UcsBase):
 					else:
 						raise AttributeError(key)
 				else:
-					#TODO: Add Warning/Error messages in Logger.
+					# TODO: Add Warning/Error messages in Logger.
 					print "No XtraProperty in mo:", self.classId, " key:", key
 		else:
 			""" property does not exist """
 			if self.__dict__['XtraProperty'].has_key(key):
 				return self.__dict__['XtraProperty'][UcsUtils.WordU(key)]
+			elif key == "Dn" or key == "Rn":
+				return None
 			else:
 				raise AttributeError(key)
 
@@ -260,21 +273,21 @@ class ManagedObject(UcsBase):
 	def IsDirty(self):
 		""" This method checks if managed object is dirty. """
 		return ((self.dirtyMask != 0) or (self.childIsDirty()))
-		
+
 	def MakeRn(self):
 		""" This method returns the Rn for a managed object. """
 		rnPattern = self.propMoMeta.rn
-		for prop in re.findall("\[([^\]]*)\]",rnPattern):
+		for prop in re.findall("\[([^\]]*)\]", rnPattern):
 			if prop in UcsUtils.GetUcsPropertyMetaAttributeList(self.classId):
 				if (self.getattr(prop) != None):
-					rnPattern = re.sub('\[%s\]' % prop,'%s' % self.getattr(prop), rnPattern)
+					rnPattern = re.sub('\[%s\]' % prop, '%s' % self.getattr(prop), rnPattern)
 				else:
-					raise UcsValidationException('Property "%s" was None in MakeRn' %prop)
-					#raise Exception('Property "%s" was None in MakeRn' %prop)
+					raise UcsValidationException('Property "%s" was None in MakeRn' % prop)
+				# raise Exception('Property "%s" was None in MakeRn' %prop)
 			else:
-				raise UcsValidationException('Property "%s" was not found in MakeRn arguments' %prop)
-				#raise Exception('Property "%s" was not found in MakeRn arguments' %prop)
-		
+				raise UcsValidationException('Property "%s" was not found in MakeRn arguments' % prop)
+			# raise Exception('Property "%s" was not found in MakeRn arguments' %prop)
+
 		return rnPattern
 
 	def WriteXml(self, w, option, elementName=None):
@@ -285,17 +298,18 @@ class ManagedObject(UcsBase):
 			x = w.createElement(self.propMoMeta.xmlAttribute)
 		else:
 			x = w.createElement(elementName)
-		if UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId)!=None:
+		if UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId) != None:
 			for at in UcsUtils.GetUcsPropertyMetaAttributeList(self.classId):
 				atMeta = UcsUtils.GetUcsPropertyMeta(self.classId, at)
 				if (atMeta.access == UcsPropertyMeta.Internal):
 					continue
-				elif ((option != WriteXmlOption.Dirty) or ((atMeta.mask != None) and (self.dirtyMask & atMeta.mask) != 0)):
+				elif ((option != WriteXmlOption.Dirty) or (
+							(atMeta.mask != None) and (self.dirtyMask & atMeta.mask) != 0)):
 					if (getattr(self, at) != None):
-						x.setAttribute(atMeta.xmlAttribute,getattr(self, at))
-		#Adding XtraProperties from object into Xml query document
-		for xtraProp in self.__dict__['XtraProperty'].keys():
-			x.setAttribute(UcsUtils.WordL(xtraProp),self.__dict__['XtraProperty'][xtraProp])
+						x.setAttribute(atMeta.xmlAttribute, getattr(self, at))
+		# Adding XtraProperties from object into Xml query document
+		for xtraProp in self.__dict__['XtraProperty']:
+			x.setAttribute(UcsUtils.WordL(xtraProp), self.__dict__['XtraProperty'][xtraProp])
 		x_child = self.childWriteXml(w, option)
 		for xc in x_child:
 			if (xc != None):
@@ -306,31 +320,31 @@ class ManagedObject(UcsBase):
 		"""	Method updates the object from the xml representation of the managed object. """
 		self.SetHandle(handle)
 		if node.hasAttributes():
-			#attributes = node._get_attributes()
-			#attCount = attributes._get_length()
+			# attributes = node._get_attributes()
+			# attCount = attributes._get_length()
 			attributes = node.attributes
 			attCount = len(attributes)
 			for i in range(attCount):
 				attNode = attributes.item(i)
-				#attr = UcsUtils.WordU(attNode._get_name())
+				# attr = UcsUtils.WordU(attNode._get_name())
 				attr = UcsUtils.WordU(attNode.localName)
 				if (UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId) != None):
 					if (attr in UcsUtils.GetUcsPropertyMetaAttributeList(self.classId)):
-						#self.setattr(attr, str(attNode.nodeValue))
+						# self.setattr(attr, str(attNode.nodeValue))
 						self.setattr(attr, str(attNode.value))
 					else:
-						#self.setattr(UcsUtils.WordU(attr), str(attNode.nodeValue))
+						# self.setattr(UcsUtils.WordU(attr), str(attNode.nodeValue))
 						self.setattr(UcsUtils.WordU(attr), str(attNode.value))
 				else:
-					#self.setattr(UcsUtils.WordU(attr), str(attNode.nodeValue))
+					# self.setattr(UcsUtils.WordU(attr), str(attNode.nodeValue))
 					self.setattr(UcsUtils.WordU(attr), str(attNode.value))
-					
-			if self.getattr("Rn") == None and self.getattr("Dn") != None:
-				self.setattr("Rn",str(re.sub(r'^.*/','',self.getattr("Dn"))))
 
-		if(node.hasChildNodes()):
-			#childList = node._get_childNodes()
-			#childCount = childList._get_length()
+			if self.getattr("Rn") == None and self.getattr("Dn") != None:
+				self.setattr("Rn", str(re.sub(r'^.*/', '', self.getattr("Dn"))))
+
+		if (node.hasChildNodes()):
+			# childList = node._get_childNodes()
+			# childCount = childList._get_length()
 			childList = node.childNodes
 			childCount = len(childList)
 			for i in range(childCount):
@@ -339,28 +353,31 @@ class ManagedObject(UcsBase):
 					continue
 
 				if childNode.localName in self.propMoMeta.fieldNames:
-					#.LoadFromXml(childNode, handle)
+					# .LoadFromXml(childNode, handle)
 					pass
-				#TODO: Need code analysis.
-				#if childNode.localName in self.propMoMeta.childFieldNames:
+				# TODO: Need code analysis.
+				# if childNode.localName in self.propMoMeta.childFieldNames:
 				c = ManagedObject(UcsUtils.WordU(childNode.localName))
 				self.child.append(c)
 				c.LoadFromXml(childNode, handle)
+
 	def __str__(self):
-		#from UcsBase import _write_mo
+		# from UcsBase import _write_mo
 		return _write_mo(self)
+
 
 class ExternalMethod(UcsBase):
 	"""
 	This class represents the UCS Xml api's query/configuration methods.
 	"""
+
 	def __init__(self, classId):
 
 		# make classId case insensitive
 		metaClassId = UcsUtils.FindClassIdInMethodMetaIgnoreCase(classId)
 		if (metaClassId == None):
 			raise UcsValidationException("Invalid class Id %s" % classId)
-			#raise Exception("Invalid class Id %s" % classId)
+		# raise Exception("Invalid class Id %s" % classId)
 		else:
 			classId = metaClassId
 
@@ -388,7 +405,7 @@ class ExternalMethod(UcsBase):
 
 	def setattr(self, key, value):
 		""" This method sets the attribute of external method object. """
-		if key in _MethodFactoryMeta[self.classId].keys():
+		if key in _MethodFactoryMeta[self.classId]:
 			self.__dict__[key] = value
 		elif key == 'errorCode':
 			self.errorCode = value
@@ -400,12 +417,12 @@ class ExternalMethod(UcsBase):
 			self.response = value
 		else:
 			""" no such property """
-			#print "No such property ClassId: %s Property:%s" %(self.classId, key)
+			# print "No such property ClassId: %s Property:%s" %(self.classId, key)
 			return None
 
 	def getattr(self, key):
 		""" This method gets the attribute value of external method object. """
-		if key in _MethodFactoryMeta[self.classId].keys():
+		if key in _MethodFactoryMeta[self.classId]:
 			""" property exists """
 			return self.__dict__[key]
 		else:
@@ -433,7 +450,7 @@ class ExternalMethod(UcsBase):
 				if (getattr(self, at) != None):
 					x.appendChild(self.__dict__[at].WriteXml(w, option, UcsUtils.WordL(at)))
 			elif (getattr(self, at) != None):
-				x.setAttribute(atMeta.xmlAttribute,getattr(self, at))
+				x.setAttribute(atMeta.xmlAttribute, getattr(self, at))
 		x_child = self.childWriteXml(w, option)
 		for xc in x_child:
 			if (xc != None):
@@ -443,30 +460,31 @@ class ExternalMethod(UcsBase):
 	def LoadFromXml(self, node, handle):
 		"""	Method updates/fills the object from the xml representation of the managed object. """
 		from Ucs import ClassFactory
+
 		self.SetHandle(handle)
 		if node.hasAttributes():
-			#attributes = node._get_attributes()
-			#attCount = attributes._get_length()
+			# attributes = node._get_attributes()
+			# attCount = attributes._get_length()
 			attributes = node.attributes
 			attCount = len(attributes)
 			for i in range(attCount):
 				attNode = attributes.item(i)
-				#attr = UcsUtils.WordU(attNode._get_name())
+				# attr = UcsUtils.WordU(attNode._get_name())
 				attr = UcsUtils.WordU(attNode.localName)
 				if (attr in UcsUtils.GetUcsPropertyMetaAttributeList(self.classId)):
 					atMeta = UcsUtils.GetUcsMethodMeta(self.classId, attr)
 					if ((atMeta.io == "Input") or (atMeta.isComplexType)):
 						continue
-					#self.setattr(attr, str(attNode.nodeValue))
+					# self.setattr(attr, str(attNode.nodeValue))
 					self.setattr(attr, str(attNode.value))
-				#elif (attNode._get_name() in externalMethodAttrs):
+				# elif (attNode._get_name() in externalMethodAttrs):
 				#	self.setattr(attNode._get_name(), str(attNode.nodeValue))
 				elif (attNode.localName in externalMethodAttrs):
 					self.setattr(attNode.localName, str(attNode.value))
 
-		if(node.hasChildNodes()):
-			#childList = node._get_childNodes()
-			#childCount = childList._get_length()
+		if (node.hasChildNodes()):
+			# childList = node._get_childNodes()
+			# childCount = childList._get_length()
 			childList = node.childNodes
 			childCount = len(childList)
 			for i in range(childCount):
@@ -483,46 +501,48 @@ class ExternalMethod(UcsBase):
 							self.setattr(cln, c)
 							c.LoadFromXml(childNode, handle)
 
+
 class UcsUtils:
 	"""
 	This class provides the basic utility functionality for the library.
 	"""
+
 	@staticmethod
 	def IsValidClassId(classId):
 		""" Methods checks whether the provided classId is valid or not. """
-		if ((classId in _ManagedObjectMeta.keys()) or (classId in _MethodFactoryMeta.keys())):
+		if ((classId in _ManagedObjectMeta) or (classId in _MethodFactoryMeta)):
 			return True
 		return False
 
 	@staticmethod
 	def GetUcsPropertyMeta(classId, key):
 		""" Methods returns the property meta of the provided key for the given classId. """
-		if classId in _ManagedObjectMeta.keys():
-			if key in _ManagedObjectMeta[classId].keys():
+		if classId in _ManagedObjectMeta:
+			if key in _ManagedObjectMeta[classId]:
 				return _ManagedObjectMeta[classId][key]
 		return None
 
 	@staticmethod
 	def GetUcsMethodMeta(classId, key):
 		""" Methods returns the method meta of the ExternalMethod. """
-		if classId in _MethodFactoryMeta.keys():
-			if key in _MethodFactoryMeta[classId].keys():
+		if classId in _MethodFactoryMeta:
+			if key in _MethodFactoryMeta[classId]:
 				return _MethodFactoryMeta[classId][key]
 		return None
 
 	@staticmethod
 	def GetUcsPropertyMetaAttributeList(classId):
 		""" Methods returns the class meta. """
-		if classId in _ManagedObjectMeta.keys():
+		if classId in _ManagedObjectMeta:
 			attrList = _ManagedObjectMeta[classId].keys()
 			attrList.remove("Meta")
 			return attrList
-		if classId in _MethodFactoryMeta.keys():
+		if classId in _MethodFactoryMeta:
 			attrList = _MethodFactoryMeta[classId].keys()
 			attrList.remove("Meta")
 			return attrList
 
-		#If the case of classId is not as in Meta
+		# If the case of classId is not as in Meta
 		nci = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (nci != None):
 			attrList = _ManagedObjectMeta[nci].keys()
@@ -540,12 +560,12 @@ class UcsUtils:
 	@staticmethod
 	def IsPropertyInMetaIgnoreCase(classId, key):
 		""" Methods returns the property meta of the provided key for the given classId. Given key is case insensitive. """
-		if classId in _ManagedObjectMeta.keys():
-			for prop in _ManagedObjectMeta[classId].keys():
+		if classId in _ManagedObjectMeta:
+			for prop in _ManagedObjectMeta[classId]:
 				if (prop.lower() == key.lower()):
 					return _ManagedObjectMeta[classId][prop]
-		if classId in _MethodFactoryMeta.keys():
-			for prop in _MethodFactoryMeta[classId].keys():
+		if classId in _MethodFactoryMeta:
+			for prop in _MethodFactoryMeta[classId]:
 				if (prop.lower() == key.lower()):
 					return _MethodFactoryMeta[classId][prop]
 		return None
@@ -553,14 +573,22 @@ class UcsUtils:
 	@staticmethod
 	def FindClassIdInMoMetaIgnoreCase(classId):
 		""" Methods whether classId is valid or not . Given class is case insensitive. """
+		if not classId:
+			return None
+		if classId in _ManagedObjectMeta:
+			return classId
+		lClassId = classId.lower()
 		for key in _ManagedObjectMeta.keys():
-			if (key.lower() == classId.lower()):
+			if (key.lower() == lClassId):
 				return key
 		return None
 
 	@staticmethod
 	def FindClassIdInMethodMetaIgnoreCase(classId):
 		""" Methods whether classId is valid or not . Given class is case insensitive. """
+		if classId in _MethodFactoryMeta:
+			return classId
+		lClassId = classId.lower()
 		for key in _MethodFactoryMeta.keys():
 			if (key.lower() == classId.lower()):
 				return key
@@ -570,17 +598,18 @@ class UcsUtils:
 	def HandleFilterMaxComponentLimit(handle, lfilter):
 		"""
 		Method checks the filter count and if the filter count exceeds the maxComponents(number of filters), then the given filter
-		objects get distributed among small groups and then again binded together in complex filters(like and , or) so that the 
+		objects get distributed among small groups and then again binded together in complex filters(like and , or) so that the
 		count of filters can be reduced.
 		"""
-		from Ucs import AndFilter,OrFilter,AbstractFilter
+		from Ucs import AndFilter, OrFilter, AbstractFilter
+
 		maxComponents = 10
 		if ((lfilter == None) or (lfilter.GetChildCount() <= maxComponents)):
 			return lfilter
 
-		if ((not(isinstance(lfilter,AndFilter))) and (not(isinstance(lfilter,OrFilter)))):
+		if ((not (isinstance(lfilter, AndFilter))) and (not (isinstance(lfilter, OrFilter)))):
 			return lfilter
-		
+
 		resultFilter = None
 		if (isinstance(lfilter, AndFilter) == True):
 			parentFilter = AndFilter()
@@ -620,24 +649,25 @@ class UcsUtils:
 	def MakeDn(rnArray):
 		""" Method forms Dn out of array of rns. """
 		return '/'.join(rnArray)
-	
+
 	@staticmethod
 	def CheckRegistryKey(javaKey):
 		""" Method checks for the java in the registry entries. """
 		from _winreg import ConnectRegistry, HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
+
 		path = None
 		try:
 			aReg = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
 			rk = OpenKey(aReg, javaKey)
 			for i in range(1024):
-				currentVersion = QueryValueEx(rk, "CurrentVersion")            
-				if currentVersion!= None:
-					key  =OpenKey(rk,currentVersion[0])
+				currentVersion = QueryValueEx(rk, "CurrentVersion")
+				if currentVersion != None:
+					key = OpenKey(rk, currentVersion[0])
 					if key != None:
 						path = QueryValueEx(key, "JavaHome")
 						return path[0]
 		except Exception, err:
-			#TODO: Add Warning/Error messages in Logger.
+			# TODO: Add Warning/Error messages in Logger.
 			WriteUcsWarning("Not able to access registry.")
 			return None
 
@@ -645,68 +675,69 @@ class UcsUtils:
 	def GetJavaInstallationPath():
 		""" Method returns the java installation path in the windows or Linux environment. """
 		import os, platform
-		
+
 		# Get JavaPath for Ubuntu
-		#if os.name == "posix":
+		# if os.name == "posix":
 		if platform.system() == "Linux":
 			path = os.environ.get('JAVA_HOME')
 			if not path:
-				raise UcsValidationException("Please make sure JAVA is installed and variable JAVA_HOME is set properly.")
-				#raise Exception("Please make sure JAVA is installed and variable JAVA_HOME is set properly.")
+				raise UcsValidationException(
+					"Please make sure JAVA is installed and variable JAVA_HOME is set properly.")
+			# raise Exception("Please make sure JAVA is installed and variable JAVA_HOME is set properly.")
 			else:
 				path = os.path.join(path, 'bin')
 				path = os.path.join(path, 'javaws')
 				if not os.path.exists(path):
 					raise UcsValidationException("javaws is not installed on System.")
-					#raise Exception("javaws is not installed on System.")
+				# raise Exception("javaws is not installed on System.")
 				else:
 					return path
-		
+
 		# Get JavaPath for Windows
-		#elif os.name == "nt":
+		# elif os.name == "nt":
 		elif platform.system() == "Windows" or platform.system() == "Microsoft":
-			
+
 			path = os.environ.get('JAVA_HOME')
-			
+
 			if path == None:
 				path = UcsUtils.CheckRegistryKey(r"SOFTWARE\\JavaSoft\\Java Runtime Environment\\")
-			
-			if path == None:#Check for 32 bit Java on 64 bit machine.
+
+			if path == None:  # Check for 32 bit Java on 64 bit machine.
 				path = UcsUtils.CheckRegistryKey(r"SOFTWARE\\Wow6432Node\\JavaSoft\\Java Runtime Environment")
-			
+
 			if not path:
 				raise UcsValidationException("Please make sure JAVA is installed.")
-				#raise Exception("Please make sure JAVA is installed.")
+			# raise Exception("Please make sure JAVA is installed.")
 			else:
 				path = os.path.join(path, 'bin')
 				path = os.path.join(path, 'javaws.exe')
 				if not os.path.exists(path):
 					raise UcsValidationException("javaws.exe is not installed on System.")
-					#raise Exception("javaws.exe is not installed on System.")
+				# raise Exception("javaws.exe is not installed on System.")
 				else:
 					return path
-				
+
 	@staticmethod
 	def DownloadFile(hUcs, source, destination):
 		"""
-		Method provides the functionality to download file from the UCS. This method is used in BackupUcs and GetTechSupport to 
+		Method provides the functionality to download file from the UCS. This method is used in BackupUcs and GetTechSupport to
 		download the files from the Ucs.
 		"""
 		import urllib2
 		from sys import stdout
 		from time import sleep
-		
-		httpAddress = "%s/%s" %(hUcs.Uri(), source)
+
+		httpAddress = "%s/%s" % (hUcs.Uri(), source)
 		file_name = httpAddress.split('/')[-1]
-		
-		req = urllib2.Request(httpAddress)#send the new url with the cookie.
-		req.add_header('Cookie','ucsm-cookie=%s' %(hUcs._cookie))
+
+		req = urllib2.Request(httpAddress)  # send the new url with the cookie.
+		req.add_header('Cookie', 'ucsm-cookie=%s' % (hUcs._cookie))
 		res = urllib2.urlopen(req)
-		
+
 		meta = res.info()
 		file_size = int(meta.getheaders("Content-Length")[0])
 		print "Downloading: %s Bytes: %s" % (file_name, file_size)
-		
+
 		f = open(destination, 'wb')
 		file_size_dl = 0
 		block_sz = 8192
@@ -718,65 +749,65 @@ class UcsUtils:
 			file_size_dl += len(rBuffer)
 			f.write(rBuffer)
 			status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
-			status = status + chr(8)*(len(status)+1)
+			status = status + chr(8) * (len(status) + 1)
 			stdout.write("\r%s" % status)
 			stdout.flush()
-			#print status
-	
+		# print status
+
 		f.close()
-		
-	
+
 	@staticmethod
 	def GetSyncMoConfigFilePath():
 		""" Method returs the path of SyncMoConfig.xml file. """
-		return os.path.join(os.path.join(os.path.dirname(__file__),"resources"),"SyncMoConfig.xml")
-		
+		return os.path.join(os.path.join(os.path.dirname(__file__), "resources"), "SyncMoConfig.xml")
+
 	@staticmethod
 	def GetSyncMoConfig(ConfigDoc):
 		""" Internal support method for SyncManagedObject. """
 		moConfigMap = {}
 		configList = ConfigDoc.getElementsByTagName("mo")
-		
+
 		for moConfigNode in configList:
-			classId=None
-			noun=None
-			version=None
-			actionVersion=None
-			action=None
-			ignoreReason=None
-			status=None
-			excludeList=None
-			
+			classId = None
+			noun = None
+			version = None
+			actionVersion = None
+			action = None
+			ignoreReason = None
+			status = None
+			excludeList = None
+
 			if moConfigNode.hasAttribute("classid"):
 				classId = moConfigNode.getAttribute("classid")
-			
+
 			if moConfigNode.hasAttribute("noun"):
 				noun = moConfigNode.getAttribute("noun")
-				
+
 			if moConfigNode.hasAttribute("version"):
 				version = moConfigNode.getAttribute("version")
-				
+
 			if moConfigNode.hasAttribute("actionVersion"):
 				actionVersion = moConfigNode.getAttribute("actionVersion")
-				
+
 			if moConfigNode.hasAttribute("action"):
 				action = moConfigNode.getAttribute("action")
-				
+
 			if moConfigNode.hasAttribute("ignoreReason"):
 				ignoreReason = moConfigNode.getAttribute("ignoreReason")
-				
+
 			if moConfigNode.hasAttribute("status"):
 				status = moConfigNode.getAttribute("status")
-				
+
 			if moConfigNode.hasAttribute("excludeList"):
 				excludeList = moConfigNode.getAttribute("excludeList")
-			
+
 			# SyncMoConfig Object
 			moConfig = None
-			
+
 			if classId:
-				moConfig = SyncMoConfig(classId, noun, version, actionVersion, action, ignoreReason, status, excludeList)
-			
+				moConfig = SyncMoConfig(classId, noun, version, actionVersion, action, ignoreReason, status,
+										excludeList)
+
 			if moConfig:
 				if classId in moConfigMap:
 					moConfigMap[classId] = moConfig
@@ -784,60 +815,62 @@ class UcsUtils:
 					moConfigList = []
 					moConfigList.append(moConfig)
 					moConfigMap[classId] = moConfigList
-			
+
 		return moConfigMap
-	
+
 	@staticmethod
 	def GetShaHash(str):
 		""" Method returns the sha hash digest for a given string. """
 		import sha
+
 		return sha.new(str).digest()
-	
+
 	@staticmethod
 	def Expandkey(key, clen):
 		""" Internal method supporting encryption and decryption functionality. """
 		import sha
 		from string import join
 		from array import array
-		blocks = (clen+19)/20
-		xkey=[]
-		seed=key
+
+		blocks = (clen + 19) / 20
+		xkey = []
+		seed = key
 		for i in xrange(blocks):
-			seed=sha.new(key+seed).digest()
+			seed = sha.new(key + seed).digest()
 			xkey.append(seed)
-		j = join(xkey,'')
-		return array ('L', j)
-	
+		j = join(xkey, '')
+		return array('L', j)
+
 	@staticmethod
 	def EncryptPassword(password, key):
-		""" Encrypts the password using the given key. """ 
+		""" Encrypts the password using the given key. """
 		from time import time
 		from array import array
 		import hmac
 		import sha
 		import os
 		import base64
-		
+
 		H = UcsUtils.GetShaHash
-		
-		uhash = H(','.join(str(x) for x in [`time()`,`os.getpid()`,`len(password)`,password,key]))[:16]
-	
-		k_enc, k_auth = H('enc'+key+uhash), H('auth'+key+uhash)
+
+		uhash = H(','.join(str(x) for x in [`time()`, `os.getpid()`, `len(password)`, password, key]))[:16]
+
+		k_enc, k_auth = H('enc' + key + uhash), H('auth' + key + uhash)
 		n = len(password)
-		passwordStream = array('L', password+'0000'[n&3:])
-		xkey = UcsUtils.Expandkey(k_enc,n+4)
-		
+		passwordStream = array('L', password + '0000'[n & 3:])
+		xkey = UcsUtils.Expandkey(k_enc, n + 4)
+
 		for i in xrange(len(passwordStream)):
 			passwordStream[i] = passwordStream[i] ^ xkey[i]
-		
+
 		ct = uhash + passwordStream.tostring()[:n]
-		auth = hmac.new(ct,k_auth,sha).digest()
-	
+		auth = hmac.new(ct, k_auth, sha).digest()
+
 		encryptStr = ct + auth[:8]
 		encodedStr = base64.encodestring(encryptStr)
 		encryptedPassword = encodedStr.rstrip('\n')
 		return encryptedPassword
-	
+
 	@staticmethod
 	def DecryptPassword(cipher, key):
 		""" Decrypts the password using the given key with which the password was encrypted first. """
@@ -845,36 +878,62 @@ class UcsUtils:
 		import hmac
 		import sha
 		from array import array
-		
+
 		H = UcsUtils.GetShaHash
-		
-		cipher = cipher+"\n"
+
+		cipher = cipher + "\n"
 		cipher = base64.decodestring(cipher)
-		n=len(cipher)-16-8
-		
+		n = len(cipher) - 16 - 8
+
 		uhash = cipher[:16]
-		passwordStream = cipher[16:-8] + "0000"[n&3:]
+		passwordStream = cipher[16:-8] + "0000"[n & 3:]
 		auth = cipher[-8:]
-		
-		k_enc, k_auth = H('enc'+key+uhash), H('auth'+key+uhash)
-		vauth = hmac.new(cipher[-8:],k_auth,sha).digest()[:8]
-		
+
+		k_enc, k_auth = H('enc' + key + uhash), H('auth' + key + uhash)
+		vauth = hmac.new(cipher[-8:], k_auth, sha).digest()[:8]
+
 		passwordStream = array('L', passwordStream)
-		xkey = UcsUtils.Expandkey(k_enc, n+4)
-		
+		xkey = UcsUtils.Expandkey(k_enc, n + 4)
+
 		for i in xrange(len(passwordStream)):
 			passwordStream[i] = passwordStream[i] ^ xkey[i]
-		
+
 		decryptedPassword = passwordStream.tostring()[:n]
 		return decryptedPassword
-			
-		
+
+	@staticmethod
+	def extractMolistFromMethodResponse(methodResponse, inHierarchical=False):
+		moList = []
+		if inHierarchical == True:
+			currentMoList = methodResponse.OutConfigs.child
+			while len(currentMoList) > 0:
+				childMoList = []
+				for mo in currentMoList:
+					moList.append(mo)
+					while mo.GetChildCount() > 0:
+						for child in mo.child:
+							mo.remove_child(child)
+							if child.__dict__.has_key('Dn'):
+								if child.Dn == None or child.Dn == "":
+									child.setattr("Dn", mo.Dn + '/' + child.Rn)
+									child.MarkClean()
+							else:
+								child.setattr("Dn", mo.Dn + '/' + child.Rn)
+								child.MarkClean()
+							childMoList.append(child)
+							break
+				currentMoList = childMoList
+		else:
+			moList = methodResponse.OutConfigs.child
+
+		return moList
+
 
 def _write_mo(mo):
 	""" Method to return string representation of a managed object. """
-	#from UcsBase import UcsUtils
+	# from UcsBase import UcsUtils
 	classNotFound = False
-	if(UcsUtils.FindClassIdInMoMetaIgnoreCase(mo.classId) == None):
+	if (UcsUtils.FindClassIdInMoMetaIgnoreCase(mo.classId) == None):
 		classNotFound = True
 
 	tabsize = 8
@@ -883,34 +942,38 @@ def _write_mo(mo):
 		outstr += "Managed Object\t\t\t:\t" + str(UcsUtils.WordU(mo.classId)) + "\n"
 	else:
 		outstr += "Managed Object\t\t\t:\t" + str(mo.propMoMeta.name) + "\n"
-	outstr += "-"*len("Managed Object") + "\n"
-	if(not classNotFound):
+	outstr += "-" * len("Managed Object") + "\n"
+	if (not classNotFound):
 		for prop in UcsUtils.GetUcsPropertyMetaAttributeList(mo.propMoMeta.name):
-			propMeta = UcsUtils.GetUcsPropertyMeta(mo.propMoMeta.name,prop)
+			propMeta = UcsUtils.GetUcsPropertyMeta(mo.propMoMeta.name, prop)
 			if (propMeta.access == UcsPropertyMeta.Internal):
 				continue
 			val = mo.getattr(prop)
-			#if val != None and val != "":
-			outstr += str(prop).ljust(tabsize*4) + ':' + str(val) + "\n"
+			# if val != None and val != "":
+			outstr += str(prop).ljust(tabsize * 4) + ':' + str(val) + "\n"
 	else:
-		for prop in mo.__dict__.keys():
+		for prop in mo.__dict__:
 			if (prop in ['classId', 'XtraProperty', 'handle', 'propMoMeta', 'dirtyMask', 'child']):
 				continue
 			val = mo.__dict__[prop]
-			outstr += str(UcsUtils.WordU(prop)).ljust(tabsize*4) + ':' + str(val) + "\n"
+			outstr += str(UcsUtils.WordU(prop)).ljust(tabsize * 4) + ':' + str(val) + "\n"
 	if mo.__dict__.has_key('XtraProperty'):
-		for xtraProp in mo.__dict__['XtraProperty'].keys():
-			outstr += '[X]' + str(UcsUtils.WordU(xtraProp)).ljust(tabsize*4) + ':' + str(mo.__dict__['XtraProperty'][xtraProp]) + "\n"
-			
-	outstr += str("Ucs").ljust(tabsize*4) + ':' + str(mo.handle._ucs) + "\n"
-	
+		for xtraProp in mo.__dict__['XtraProperty']:
+			outstr += '[X]' + str(UcsUtils.WordU(xtraProp)).ljust(tabsize * 4) + ':' + str(
+				mo.__dict__['XtraProperty'][xtraProp]) + "\n"
+
+	outstr += str("Ucs").ljust(tabsize * 4) + ':' + str(mo.handle._ucs) + "\n"
+
 	outstr += "\n"
-	return outstr 
+	return outstr
+
 
 def WriteMoDiff(diffObj):
 	""" Writes the difference managedObject(output of CompareManagedObject) on the terminal. """
 	tabsize = 8
-	print str(diffObj.Dn).ljust(tabsize*10),str(diffObj.InputObject.propMoMeta.name).ljust(tabsize*4),str(diffObj.SideIndicator).ljust(tabsize*3),str(diffObj.DiffProperty)
+	print str(diffObj.Dn).ljust(tabsize * 10), str(diffObj.InputObject.propMoMeta.name).ljust(tabsize * 4), str(
+		diffObj.SideIndicator).ljust(tabsize * 3), str(diffObj.DiffProperty)
+
 
 def WriteObject(moList):
 	""" Writes the managed object on the terminal in form of key value pairs. """
@@ -928,24 +991,30 @@ def WriteObject(moList):
 	elif (isinstance(moList, ManagedObject) == True):
 		print str(_write_mo(moList))
 	elif ((isinstance(moList, list) == True) and (len(moList) > 0)):
-		if (isinstance(moList[0],UcsMoDiff)):
-			print "Dn".ljust(tabsize*10),"InputObject".ljust(tabsize*4),"SideIndicator".ljust(tabsize*3),"DiffProperty"
-			print "--".ljust(tabsize*10),"-----------".ljust(tabsize*4),"-------------".ljust(tabsize*3),"------------"
+		if (isinstance(moList[0], UcsMoDiff)):
+			print "Dn".ljust(tabsize * 10), "InputObject".ljust(tabsize * 4), "SideIndicator".ljust(
+				tabsize * 3), "DiffProperty"
+			print "--".ljust(tabsize * 10), "-----------".ljust(tabsize * 4), "-------------".ljust(
+				tabsize * 3), "------------"
 		for mo in moList:
 			if (isinstance(mo, ManagedObject) == True):
 				print str(_write_mo(mo))
-			elif(isinstance(mo, Dn) == True):
+			elif (isinstance(mo, Dn) == True):
 				print mo.getattr("value")
-			elif(isinstance(mo, UcsMoDiff) == True):
+			elif (isinstance(mo, UcsMoDiff) == True):
 				WriteMoDiff(mo)
+
 
 def WriteUcsWarning(string):
 	""" Method to throw warnings. """
 	import warnings
+
 	warnings.warn(string)
+
 
 class GenericMO(ManagedObject):
 	""" This class handles the exceptional behaviour of Generic managed object. """
+
 	def __init__(self, mo, option):
 		ManagedObject.__init__(self, mo.classId)
 		self._excludePropList = []
@@ -958,58 +1027,60 @@ class GenericMO(ManagedObject):
 
 class _GenericMO(ManagedObject):
 	""" This class provides the functionality to create Generic managed objects. """
+
 	def __init__(self, loadXml=None, mo=None, option=WriteXmlOption.AllConfig):
-		ManagedObject.__init__(self,"GMO")
+		ManagedObject.__init__(self, "GMO")
 		self.dn = None
 		self.rn = None
 		self.properties = {}
 		self.loadXml = loadXml
 		self.mo = mo
 		self.option = option
-		
+
 		if loadXml:
 			self.GetRootNode(loadXml)
-		
+
 		if mo:
 			self.FromManagedObject()
-		
-	def GetRootNode(self,xmlString):
+
+	def GetRootNode(self, xmlString):
 		_doc = xml.dom.minidom.parseString(xmlString)
 		rootNode = _doc.documentElement
 		self.LoadFromXml(rootNode)
-		
+
 	def GetAttribute(self, attr):
-		if attr in self.properties.keys():
+		if attr in self.properties:
 			return self.properties[attr]
 		return None
-	
-	def WriteToAttributes(self,node):
+
+	def WriteToAttributes(self, node):
 		if node.hasAttributes():
 			for _attr, _val in node.attributes.items():
 				self.properties[_attr] = _val
-			
-	def LoadFromXml(self,node):
+
+	def LoadFromXml(self, node):
 		"""	Method updates the object from the xml. """
 		import os
+
 		self.classId = node.localName
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId)
 
 		if metaClassId:
 			self.classId = metaClassId
-		
+
 		if node.hasAttribute(NamingPropertyId.DN):
 			self.dn = node.getAttribute(NamingPropertyId.DN)
-		
+
 		if self.dn:
 			self.rn = os.path.basename(self.dn)
-		
+
 		# Write the attribute and value to dictionary properties, as it is .
 		self.WriteToAttributes(node)
-		
+
 		# Run the LoadFromXml for each childNode recursively and populate child list too.
-		if(node.hasChildNodes()):
-			#childList = node._get_childNodes()
-			#childCount = childList._get_length()
+		if (node.hasChildNodes()):
+			# childList = node._get_childNodes()
+			# childCount = childList._get_length()
 			childList = node.childNodes
 			childCount = len(childList)
 			for i in range(childCount):
@@ -1019,40 +1090,40 @@ class _GenericMO(ManagedObject):
 				c = _GenericMO()
 				self.child.append(c)
 				c.LoadFromXml(childNode)
-		
+
 	def WriteXml(self, w, option, elementName=None):
 		"""	Method writes the xml representation of the generic managed object.	"""
 		if elementName == None:
 			x = w.createElement(self.classId)
 		else:
 			x = w.createElement(elementName)
-			
-		for prop in self.__dict__['properties'].keys():
-			x.setAttribute(UcsUtils.WordL(prop),self.__dict__['properties'][prop])
+
+		for prop in self.__dict__['properties']:
+			x.setAttribute(UcsUtils.WordL(prop), self.__dict__['properties'][prop])
 		x_child = self.childWriteXml(w, option)
 		for xc in x_child:
 			if (xc != None):
 				x.appendChild(xc)
 		return x
-	 
+
 	def ToManagedObject(self):
 		"""
-		Method creates and returns an object of ManagedObject class using the classId and information from the 
+		Method creates and returns an object of ManagedObject class using the classId and information from the
 		Generic managed object.
 		"""
-		from Ucs import ClassFactory 
-	
+		from Ucs import ClassFactory
+
 		cln = UcsUtils.WordU(self.classId)
 		mo = ClassFactory(cln)
 		if mo and (isinstance(mo, ManagedObject) == True):
 			metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(self.classId)
-			for property in self.properties.keys():
+			for property in self.properties:
 				if UcsUtils.WordU(property) in UcsUtils.GetUcsPropertyMetaAttributeList(metaClassId):
 					mo.setattr(UcsUtils.WordU(property), self.properties[property])
 				else:
-					#TODO: Add Warning/Error messages in Logger.
-					WriteUcsWarning("Property %s Not Exist in MO %s" %(UcsUtils.WordU(property), metaClassId))
-			
+					# TODO: Add Warning/Error messages in Logger.
+					WriteUcsWarning("Property %s Not Exist in MO %s" % (UcsUtils.WordU(property), metaClassId))
+
 			if len(self.child):
 				for ch in self.child:
 					moch = ch.ToManagedObject()
@@ -1060,29 +1131,28 @@ class _GenericMO(ManagedObject):
 			return mo
 		else:
 			return None
-		
-		
+
 	def FromManagedObject(self):
 		"""
-		Method creates and returns an object of _GenericMO class using the classId and other information from the 
+		Method creates and returns an object of _GenericMO class using the classId and other information from the
 		managed object.
 		"""
 		import os
+
 		if (isinstance(self.mo, ManagedObject) == True):
 			self.classId = self.mo.classId
-			
+
 			if self.mo.getattr('Dn'):
 				self.dn = self.mo.getattr('Dn')
-				
+
 			if self.mo.getattr('Rn'):
 				self.rn = self.mo.getattr('Rn')
 			elif self.dn:
 				self.rn = os.path.basename(self.dn)
-				
-			
+
 			for property in UcsUtils.GetUcsPropertyMetaAttributeList(self.mo.classId):
 				self.properties[property] = self.mo.getattr(property)
-			
+
 			if len(self.mo.child):
 				for ch in self.mo.child:
 					if not ch.getattr('Dn'):
@@ -1091,27 +1161,23 @@ class _GenericMO(ManagedObject):
 					gmo = _GenericMO(mo=ch)
 					self.child.append(gmo)
 
-				
-					
-				
-		
 	def __str__(self):
 		tabsize = 8
 		if (isinstance(self, _GenericMO) == True):
 			outStr = "\n"
-			outStr +=  'classId'.ljust(tabsize*4) + ':' + str(self.__dict__['classId']) + "\n"
-			outStr += 'dn'.ljust(tabsize*4) + ':' + str(self.__dict__['dn']) + "\n"
-			outStr += 'rn'.ljust(tabsize*4) + ':' + str(self.__dict__['rn']) + "\n"
+			outStr += 'classId'.ljust(tabsize * 4) + ':' + str(self.__dict__['classId']) + "\n"
+			outStr += 'dn'.ljust(tabsize * 4) + ':' + str(self.__dict__['dn']) + "\n"
+			outStr += 'rn'.ljust(tabsize * 4) + ':' + str(self.__dict__['rn']) + "\n"
 			for key, value in self.__dict__['properties'].items():
-				outStr += key.ljust(tabsize*4) + ':' + str(value) + "\n"
-			
+				outStr += key.ljust(tabsize * 4) + ':' + str(value) + "\n"
+
 			for ch in self.child:
 				outStr += str(ch) + "\n"
-				
-			#print outStr
+
+			# print outStr
 			return outStr
-	
-	def GetChildClassId(self,classId):
+
+	def GetChildClassId(self, classId):
 		"""
 		Method extracts and returns the child object list same as the given classId
 		"""
@@ -1120,19 +1186,19 @@ class _GenericMO(ManagedObject):
 			if ch.classId.lower() == classId.lower():
 				childList.append(ch)
 		return childList
-	
+
 	def GetChild(self):
 		""" Method returns the child object. """
 		return self.child
-	
-	
+
+
 class SyncAction:
 	""" Internal class to provide constants for SyncManagedObject functionality. """
 	statusChange = "STATUS_CHANGE"
 	ignore = "IGNORE"
 	none = "NONE"
-		
-	
+
+
 class SyncMoConfig:
 	""" Internal class to support SyncManagedObject functionality. """
 	classId = ""
@@ -1143,70 +1209,93 @@ class SyncMoConfig:
 	ignoreReason = {}
 	status = ""
 	excludeList = []
-	
+
 	def __init__(self, classId, noun, version, actionVersion, action, ignoreReason, status, excludeList):
 		self.classId = classId
 		self.noun = noun
-		
+
 		if version:
 			self.version = UcsVersion(version)
 		else:
 			self.version = None
-		
+
 		if actionVersion:
 			self.actionVersion = UcsVersion(actionVersion)
 		else:
 			actionVersion = None
-		
+
 		self.status = status
-		
+
 		if (action.strip()).lower() == ("statusChange").lower():
 			self.action = SyncAction.statusChange
 		elif (action.strip()).lower() == ("ignore").lower():
 			self.action = SyncAction.ignore
 		else:
 			self.action = SyncAction.none
-		
+
 		if excludeList:
-			self.excludeList =  excludeList.split(",")
+			self.excludeList = excludeList.split(",")
 		else:
 			self.excludeList = None
-		
-		irMap = {}	
+
+		irMap = {}
 		if ignoreReason and self.action == SyncAction.ignore:
-			
+
 			pairs = ignoreReason.strip().split(",")
 			for pair in pairs:
 				kv = pair.strip().split("=")
 				if kv is None or len(kv) != 2:
 					continue
 				irMap[kv[0]] = kv[1]
-		
+
 		if irMap:
 			self.ignoreReason = irMap
-		
-		
+
 	def getClassid(self):
 		return self.classId
-	
+
 	def getNoun(self):
 		return self.noun
-	
+
 	def getVersion(self):
 		return self.version
-	
+
 	def getActionVersion(self):
 		return self.actionVersion
-	
+
 	def getAction(self):
 		return self.action
-	
+
 	def getStatus(self):
 		return self.status
-	
+
 	def getExcludeList(self):
 		return self.excludeList
-	
+
 	def getIgnoreReason(self):
 		return self.ignoreReason
-		
+
+def loadUcsConfig():
+	from ConfigParser import SafeConfigParser
+
+	configFile = os.path.join(os.path.dirname(__file__),"UcsConfig.cfg")
+	parser = SafeConfigParser()
+	parser.read(configFile)
+
+	sslProtocol = parser.get('ssl_connection', 'ssl_protocol').strip('"')
+	isVerifyCertificate = parser.getboolean('ssl_connection', 'verify_certificate')
+
+	if not sys.version_info < (2, 6):
+		from functools import partial
+		import ssl
+
+		sslProtocolDict = {'SSLv2': ssl.PROTOCOL_SSLv2,
+							 'SSLv23': ssl.PROTOCOL_SSLv23,
+							 'SSLv3': ssl.PROTOCOL_SSLv3,
+							 'TLSv1': ssl.PROTOCOL_TLSv1
+							 }
+
+		ssl.wrap_socket = partial(ssl.wrap_socket, ssl_version=sslProtocolDict[sslProtocol])
+
+		if not sys.version_info < (2, 7, 9) and not isVerifyCertificate:
+			ssl._create_default_https_context = ssl._create_unverified_context

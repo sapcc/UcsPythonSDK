@@ -27,16 +27,19 @@ import signal
 _AffirmativeList = ['true', 'True', 'TRUE', True, 'yes', 'Yes', 'YES']
 defaultUcs = {}
 
+
 class UcsHandle:
 	"""
-	UcsHandle class handles all the Session and Xml request related functionality.
-	
-	This class provides all the functionality related to session creation/refresh/destroy, transactions, xml/xmlRaw request handling, 
-	event channel handling, starting KVM/Gui Session, BackUp ucs, Import Ucs BackUp, Firmware Upgrade, Generating Tech Support File, 
-	Compare and synchronize managed objects and Get/Set/Add/Remove operations on managed objects.
-	"""
+    UcsHandle class handles all the Session and Xml request related functionality.
+
+    This class provides all the functionality related to session creation/refresh/destroy, transactions, xml/xmlRaw request handling,
+    event channel handling, starting KVM/Gui Session, BackUp ucs, Import Ucs BackUp, Firmware Upgrade, Generating Tech Support File,
+    Compare and synchronize managed objects and Get/Set/Add/Remove operations on managed objects.
+    """
+
 	def __init__(self):
 		from Ucs import ConfigMap
+
 		self._name = None
 		self._noSsl = False
 		self._port = 443
@@ -65,45 +68,47 @@ class UcsHandle:
 		self._dequeueThread = None
 		self._proxy = None
 		self._dumpXml = False
-		
+
 	def SetDumpXml(self):
 		""" SetDumpXml method sets the flag at handle level to display XML request and response. """
 		self._dumpXml = True
-	
+
 	def UnsetDumpXml(self):
 		""" UnsetDumpXml method sets the flag at handle level to hide XML request and response. """
 		self._dumpXml = False
 
 	def Uri(self):
 		"""	Constructs the connection URI from name, noSsl and port instance variables.	"""
-		return ("%s://%s%s" % (("https","http")[self._noSsl == True], self._name, (":" + str(self._port),"")[(((self._noSsl == False) and  (self._port == 80)) or ((self._noSsl == True) and (self._port == 443)))]))
+		return ("%s://%s%s" % (("https", "http")[self._noSsl == True], self._name, (":" + str(self._port), "")[
+			(((self._noSsl == False) and (self._port == 80)) or ((self._noSsl == True) and (self._port == 443)))]))
 
 	def StartTransaction(self):
 		"""
-		Starts a transaction.
-		
-		Any modification query (i.e. configConfMo or configConfMos) will be stored locally in configMap, till completeTransaction or 
-		undoTransaction is not called.
-		All other queries will be sent normally to UCS.
-		"""
+        Starts a transaction.
+
+        Any modification query (i.e. configConfMo or configConfMos) will be stored locally in configMap, till completeTransaction or
+        undoTransaction is not called.
+        All other queries will be sent normally to UCS.
+        """
 		self._transactionInProgress = True
 
 	def UndoTransaction(self):
 		"""	Cancels any running transaction. """
 		from Ucs import ConfigMap
+
 		self._transactionInProgress = False
 		self._configMap = ConfigMap()
 
 	def CompleteTransaction(self, dumpXml=None):
 		"""
-		Completes a transaction.
-		
-		This method completes a transaction by sending the final configuration (modification queries stored in configMap) to UCS and 
-		returns the result.
+        Completes a transaction.
+
+        This method completes a transaction by sending the final configuration (modification queries stored in configMap) to UCS and
+        returns the result.
         """
 		from Ucs import ConfigMap, Pair
-		from UcsBase import ManagedObject,WriteUcsWarning,WriteObject,UcsException
-		
+		from UcsBase import ManagedObject, WriteUcsWarning, WriteObject, UcsException
+
 		self._transactionInProgress = False
 		ccm = self.ConfigConfMos(self._configMap, YesOrNo.FALSE, dumpXml)
 		self._configMap = ConfigMap()
@@ -115,24 +120,25 @@ class UcsHandle:
 						moList.append(mo)
 				elif (isinstance(child, ManagedObject) == True):
 					moList.append(child)
-			#WriteObject(moList)
+			# WriteObject(moList)
 			return moList
 		else:
-			#raise Exception('[Error]: CompleteTransaction [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+			# raise Exception('[Error]: CompleteTransaction [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
 
 	def XmlQuery(self, method, options, dumpXml=None):
 		"""
-		Accepts any ExternalMethod stores any modification query locally if transaction is in progress (and returns temporary result)
+        Accepts any ExternalMethod stores any modification query locally if transaction is in progress (and returns temporary result)
         prepares xml query as per the writeXmlOption from external method. Opens a connection to url, sends the xmlQuery string to url 
         location, and returns result. Prepares objects from xml query result and returns external method response.
         """
-		from UcsBase import ExternalMethod,ManagedObject,UcsUtils
+		from UcsBase import ExternalMethod, ManagedObject, UcsUtils
 		from Ucs import ConfigConfig, Pair, ConfigMap
 		from MoMeta import _ManagedObjectMeta
 		from MethodMeta import _MethodFactoryMeta
 
-		if ((self._transactionInProgress == True) and (method.propMoMeta.xmlAttribute in [NamingId.CONFIG_CONF_MO, NamingId.CONFIG_CONF_MOS])):
+		if ((self._transactionInProgress == True) and (
+					method.propMoMeta.xmlAttribute in [NamingId.CONFIG_CONF_MO, NamingId.CONFIG_CONF_MOS])):
 			if (method.propMoMeta.xmlAttribute == NamingId.CONFIG_CONF_MO):
 				ccm = method
 				ccmResponse = ExternalMethod(NamingId.CONFIG_CONF_MO)
@@ -175,145 +181,146 @@ class UcsHandle:
 				ccmResponse.response = "yes"
 				return ccmResponse
 		else:
-			try:				
+			try:
 				if (dumpXml == None):
 					dumpXml = self._dumpXml
-				
+
 				w = xml.dom.minidom.Document()
 				w.appendChild(method.WriteXml(w, options))
 				uri = self.Uri() + '/nuova'
 				if (dumpXml in _AffirmativeList):
 					print '%s ====> %s' % (self._ucs, w.toxml())
-				
+
 				if (self._proxy is None):
-					if(self._noSsl):
-						req = urllib2.Request(url=uri,data=w.toxml())
+					if (self._noSsl):
+						req = urllib2.Request(url=uri, data=w.toxml())
 						opener = urllib2.build_opener(SmartRedirectHandler())
 						f = opener.open(req)
-						#print "##", f , "##"
-						
+						# print "##", f , "##"
+
 						if type(f) is list:
-							if(len(f) == 2 and f[0] == 302):
-								#self._noSsl = False
-								#uri = self.Uri() + '/nuova'
+							if (len(f) == 2 and f[0] == 302):
+								# self._noSsl = False
+								# uri = self.Uri() + '/nuova'
 								uri = f[1]
-								req = urllib2.Request(url=uri,data=w.toxml())
-								f = urllib2.urlopen(req)						
-								#print "status code is:",f[0]
-								#print "location is:", f[1]
+								req = urllib2.Request(url=uri, data=w.toxml())
+								f = urllib2.urlopen(req)
+							# print "status code is:",f[0]
+							# print "location is:", f[1]
 					else:
-						req = urllib2.Request(url=uri,data=w.toxml())
+						req = urllib2.Request(url=uri, data=w.toxml())
 						opener = urllib2.build_opener()
 						f = opener.open(req)
-						#f = urllib2.urlopen(req)
+					# f = urllib2.urlopen(req)
 				else:
-					
+
 					proxy_handler = urllib2.ProxyHandler({'http': self._proxy, 'https': self._proxy})
-	
-					if(self._noSsl):
-						req = urllib2.Request(url=uri,data=w.toxml())
+
+					if (self._noSsl):
+						req = urllib2.Request(url=uri, data=w.toxml())
 						opener = urllib2.build_opener(proxy_handler, SmartRedirectHandler())
 						f = opener.open(req)
-						
+
 						if type(f) is list:
-							if(len(f) == 2 and f[0] == 302):
-								#self._noSsl = False
-								#uri = self.Uri() + '/nuova'
+							if (len(f) == 2 and f[0] == 302):
+								# self._noSsl = False
+								# uri = self.Uri() + '/nuova'
 								uri = f[1]
-								req = urllib2.Request(url=uri,data=w.toxml())
+								req = urllib2.Request(url=uri, data=w.toxml())
 								opener = urllib2.build_opener(proxy_handler)
 								f = opener.open(req)
-								#f = urllib2.urlopen(req)						
-								#print "status code is:",f[0]
-								#print "location is:", f[1]
+							# f = urllib2.urlopen(req)
+							# print "status code is:",f[0]
+							# print "location is:", f[1]
 					else:
-						req = urllib2.Request(url=uri,data=w.toxml())
+						req = urllib2.Request(url=uri, data=w.toxml())
 						opener = urllib2.build_opener(proxy_handler)
 						f = opener.open(req)
-				
+
 				rsp = f.read()
 				if (dumpXml in _AffirmativeList):
 					print '%s <==== %s' % (self._ucs, rsp)
-	
-				#method = method.propMoMeta.name
+
+				# method = method.propMoMeta.name
 				response = ExternalMethod(method.propMoMeta.name)
 				doc = parseString(rsp)
 				response.LoadFromXml(doc.childNodes[0], self)
 				return response
-			#For catching URLError and returning string representation of URLError class as there is no
-			#message attribute in this class.
-#			except urllib2.URLError, e:
-#				response = ExternalMethod(method.propMoMeta.name)
-#				response.getErrorResponse("300",str(e))
-#				return response
-#			#For catching HTTPError and returning msg attribute of this class.
-#			except urllib2.HTTPError, e:
-#				response = ExternalMethod(method.propMoMeta.name)
-#				response.getErrorResponse(e.code,e.msg)
-#				return response
-#			#Wide Catch block for catching all type of exception objects.
-#			except Exception, e:
-#				response = ExternalMethod( method.propMoMeta.name)
-#				response.getErrorResponse("300",e.message)
-#				return response
+			# For catching URLError and returning string representation of URLError class as there is no
+			# message attribute in this class.
+			#			except urllib2.URLError, e:
+			#				response = ExternalMethod(method.propMoMeta.name)
+			#				response.getErrorResponse("300",str(e))
+			#				return response
+			#			#For catching HTTPError and returning msg attribute of this class.
+			#			except urllib2.HTTPError, e:
+			#				response = ExternalMethod(method.propMoMeta.name)
+			#				response.getErrorResponse(e.code,e.msg)
+			#				return response
+			#			#Wide Catch block for catching all type of exception objects.
+			#			except Exception, e:
+			#				response = ExternalMethod( method.propMoMeta.name)
+			#				response.getErrorResponse("300",e.message)
+			#				return response
 			except Exception, e:
 				raise
-		
+
 	def XmlRawQuery(self, xml, dumpXml=None):
 		"""	Accepts xmlQuery String and returns xml response String. No object manipulation is done in this method.	"""
-		
+
 		if (dumpXml == None):
 			dumpXml = self._dumpXml
-		
+
 		uri = self.Uri() + '/nuova'
 		if (dumpXml in _AffirmativeList):
 			print '%s ====> %s' % (self._ucs, xml)
-		#req = urllib2.Request(url=uri,data=xml)
-		#f = urllib2.urlopen(req)
+		# req = urllib2.Request(url=uri,data=xml)
+		# f = urllib2.urlopen(req)
 		w = xml.dom.minidom.Document()
-		
-		if(self._noSsl):
-			req = urllib2.Request(url=uri,data=w.toxml())
+
+		if (self._noSsl):
+			req = urllib2.Request(url=uri, data=w.toxml())
 			opener = urllib2.build_opener(SmartRedirectHandler())
 			f = opener.open(req)
-			#print "##", f , "##"
-			
+			# print "##", f , "##"
+
 			if type(f) is list:
-				if(len(f) == 2 and f[0] == 302):
-					#self._noSsl = False
-					#uri = self.Uri() + '/nuova'
+				if (len(f) == 2 and f[0] == 302):
+					# self._noSsl = False
+					# uri = self.Uri() + '/nuova'
 					uri = f[1]
-					req = urllib2.Request(url=uri,data=w.toxml())
-					f = urllib2.urlopen(req)						
-					#print "status code is:",f[0]
-					#print "location is:", f[1]
+					req = urllib2.Request(url=uri, data=w.toxml())
+					f = urllib2.urlopen(req)
+				# print "status code is:",f[0]
+				# print "location is:", f[1]
 		else:
-			req = urllib2.Request(url=uri,data=w.toxml())
+			req = urllib2.Request(url=uri, data=w.toxml())
 			f = urllib2.urlopen(req)
-		
+
 		rsp = f.read()
 		if (dumpXml in _AffirmativeList):
 			print '%s <==== %s' % (self._ucs, rsp)
 		return rsp
 
-	def Login(self, name, username=None, password=None, noSsl=False, port=None, dumpXml=None, proxy=None, autoRefresh=YesOrNo.FALSE):
+	def Login(self, name, username=None, password=None, noSsl=False, port=None, dumpXml=None, proxy=None,
+			  autoRefresh=YesOrNo.FALSE):
 		"""
-		Login method authenticates and connects to UCS.
-		
-		- name specifies the IP Address IMC Server.
-		- username specifies the username credential.
-		- password specifies the password credential.
-		- noSsl specifies if the connection is made via http(True) or https(False). Default is False.
-		- port specifies the port. Default is 80(http) or 443(https).
-		- proxy specifies if the is made via proxy.
-		- autoRefresh specifes to True to keep the cookie alive.Default is False.		
-		"""
-		from UcsBase import ManagedObject,UcsUtils,WriteUcsWarning,UcsException,UcsValidationException
+        Login method authenticates and connects to UCS.
+
+        - name specifies the IP Address IMC Server.
+        - username specifies the username credential.
+        - password specifies the password credential.
+        - noSsl specifies if the connection is made via http(True) or https(False). Default is False.
+        - port specifies the port. Default is 80(http) or 443(https).
+        - proxy specifies if the is made via proxy.
+        - autoRefresh specifes to True to keep the cookie alive.Default is False.
+        """
+		from UcsBase import ManagedObject, UcsUtils, WriteUcsWarning, UcsException, UcsValidationException
 		from Mos import FirmwareRunning
 		import getpass
-		
+
 		if (name == None):
-			#raise Exception('[Error]: Hostname/IP was not specified')
+			# raise Exception('[Error]: Hostname/IP was not specified')
 			raise UcsValidationException('Hostname/IP was not specified')
 
 		if (username == None):
@@ -336,10 +343,10 @@ class UcsHandle:
 			self._port = 80
 		else:
 			self._port = 443
-		
+
 		if (proxy != None):
 			self._proxy = proxy
-			
+
 		self._cookie = ""
 		response = self.AaaLogin(username, password, dumpXml)
 
@@ -353,7 +360,7 @@ class UcsHandle:
 			self._password = None
 			self._noSsl = False
 			self._port = 443
-			#raise Exception('[Error]: Login : Connection to <%s> Failed' %(name))
+			# raise Exception('[Error]: Login : Connection to <%s> Failed' %(name))
 			raise UcsException(response.errorCode, response.errorDescr)
 
 		self._cookie = response.OutCookie
@@ -373,7 +380,8 @@ class UcsHandle:
 		if ((response.OutVersion == "") or (response.OutVersion == None)):
 			firmwareObj = ManagedObject(NamingId.FIRMWARE_RUNNING)
 			firmwareObj.Deployment = FirmwareRunning.CONST_DEPLOYMENT_SYSTEM
-			rnArray = [ManagedObject(NamingId.TOP_SYSTEM).MakeRn(), ManagedObject(NamingId.MGMT_CONTROLLER).MakeRn(), firmwareObj.MakeRn()]
+			rnArray = [ManagedObject(NamingId.TOP_SYSTEM).MakeRn(), ManagedObject(NamingId.MGMT_CONTROLLER).MakeRn(),
+					   firmwareObj.MakeRn()]
 			crDn = self.ConfigResolveDn(UcsUtils.MakeDn(rnArray), False, dumpXml)
 			if (crDn.errorCode == 0):
 				for fr in crDn.OutConfig.GetChild():
@@ -382,13 +390,14 @@ class UcsHandle:
 		if autoRefresh in _AffirmativeList:
 			self._Start_refresh_timer()
 
-		if self._ucs not in defaultUcs.keys():
+		if self._ucs not in defaultUcs:
 			defaultUcs[self._ucs] = self
 		return True
 
-	def Logout(self, dumpXml = None):
+	def Logout(self, dumpXml=None):
 		""" Logout method disconnects from UCS. """
 		from UcsBase import UcsException
+
 		if (self._cookie == None):
 			return True
 
@@ -403,23 +412,23 @@ class UcsHandle:
 		self._sessionId = None
 		self._version = None
 
-		if self._ucs in defaultUcs.keys():
+		if self._ucs in defaultUcs:
 			del defaultUcs[self._ucs]
 
 		if (response.errorCode != 0):
 			raise UcsException(response.errorCode, response.errorDescr)
-			#raise Exception('[Error]: Logout [Code]:' + response.errorCode + '[Description]:' + response.errorDescr)
-		
+		# raise Exception('[Error]: Logout [Code]:' + response.errorCode + '[Description]:' + response.errorDescr)
+
 		return True
 
 	def _Start_refresh_timer(self):
 		""" Internal method to support auto-refresh functionality. """
 		if self._refreshPeriod > 60:
-			interval = self._refreshPeriod-60
+			interval = self._refreshPeriod - 60
 		else:
 			interval = 60
 		self._refreshTimer = Timer(self._refreshPeriod, self.Refresh)
-		#TODO:handle exit and logout active connections. revert from daemon then
+		# TODO:handle exit and logout active connections. revert from daemon then
 		self._refreshTimer.setDaemon(True)
 		self._refreshTimer.start()
 
@@ -428,18 +437,19 @@ class UcsHandle:
 		if self._refreshTimer != None:
 			self._refreshTimer.cancel()
 			self._refreshTimer = None
-			
+
 	def Refresh(self, autoRelogin=False, dumpXml=YesOrNo.FALSE):
 		"""
 		Sends the aaaRefresh query to the UCS to refresh the connection (to prevent session expiration).
-		"""	
+		"""
 		self._Stop_refresh_timer()
-			
+
 		response = self.AaaRefresh(self._username, self._password, dumpXml)
 		if (response.errorCode != 0):
 			self._cookie = None
 			if (autoRelogin):
-				return self.Login(self._name, self._username, self._password, self._noSsl, self._port, dumpXml, self._proxy, autoRefresh=YesOrNo.TRUE)
+				return self.Login(self._name, self._username, self._password, self._noSsl, self._port, dumpXml,
+								  self._proxy, autoRefresh=YesOrNo.TRUE)
 			return False
 
 		self._domains = response.OutDomains
@@ -447,7 +457,7 @@ class UcsHandle:
 		self._refreshPeriod = int(response.OutRefreshPeriod)
 		self._cookie = response.OutCookie
 
-		#re-enable the timer
+		# re-enable the timer
 		self._Start_refresh_timer()
 		return True
 
@@ -458,16 +468,17 @@ class UcsHandle:
 		Provides functionality of enqueue/dequeue of the events and triggering callbacks. 
 		 """
 		from UcsBase import _GenericMO, UcsUtils, WriteObject
+
 		myThread = self._enqueueThread
 		self._enqueueThreadSignal.acquire()
 		try:
 			xmlQuery = '<eventSubscribe cookie="' + self._cookie + '"/>'
 			uri = self.Uri() + '/nuova'
-			req = urllib2.Request(url=uri,data=xmlQuery)
+			req = urllib2.Request(url=uri, data=xmlQuery)
 			self._watchWebResponse = urllib2.urlopen(req)
 			self._enqueueThreadSignal.notify()
 			self._enqueueThreadSignal.release()
-			
+
 		except:
 			self._enqueueThread = None
 			self._enqueueThreadSignal.notify()
@@ -481,30 +492,34 @@ class UcsHandle:
 					break
 				rsp = sr.readline()
 				rsp = sr.read(int(rsp))
-				#TODO:LoadFromXml with raw xml string, if possible
-				#doc = xml.dom.minidom.parseString(rsp)
-				#rootNode = doc.documentElement
+				# TODO:LoadFromXml with raw xml string, if possible
+				# doc = xml.dom.minidom.parseString(rsp)
+				# rootNode = doc.documentElement
 
-				gmo = _GenericMO(loadXml = rsp)#Creating Generic Mo
-				#gmo.LoadFromXml(rootNode)
+				gmo = _GenericMO(loadXml=rsp)  # Creating Generic Mo
+				# gmo.LoadFromXml(rootNode)
 				classId = gmo.classId
 
-				if UcsUtils.WordL(classId) == NamingId.CONFIG_MO_CHANGE_EVENT:#Checks if the managed object is of type configMoChangeEvent and adds to queue.
+				if UcsUtils.WordL(
+						classId) == NamingId.CONFIG_MO_CHANGE_EVENT:  # Checks if the managed object is of type configMoChangeEvent and adds to queue.
 					if myThread == self._enqueueThread:
 						for inconfig in gmo.GetChildClassId("inconfig"):
 							for moObj in inconfig.GetChild():
 								mce = None
 								for wb in self._wbs:
 									if mce == None:
-										mce = UcsMoChangeEvent(eventId = gmo.properties["inEid"], mo = moObj.ToManagedObject(), changeList = moObj.properties.keys())
-									if (wb.fmce(mce)):#TODO: Need to add Filter Support.
-										self._enqueueThreadSignal.acquire()#Acquire the Lock
+										mce = UcsMoChangeEvent(eventId=gmo.properties["inEid"],
+															   mo=moObj.ToManagedObject(),
+															   changeList=moObj.properties.keys())
+									if (wb.fmce(mce)):  # TODO: Need to add Filter Support.
+										self._enqueueThreadSignal.acquire()  # Acquire the Lock
 										wb.Enqueue(mce)
 										mce = None
-										self._enqueueThreadSignal.notify()#Notify
-										self._enqueueThreadSignal.release()#Release the Lock
+										self._enqueueThreadSignal.notify()  # Notify
+										self._enqueueThreadSignal.release()  # Release the Lock
 
-				elif UcsUtils.WordL(classId) == NamingId.METHOD_VESSEL:#Checks if the managed object is of type methodVessel and adds to queue.
+				elif UcsUtils.WordL(
+						classId) == NamingId.METHOD_VESSEL:  # Checks if the managed object is of type methodVessel and adds to queue.
 					if myThread == self._enqueueThread:
 						for instimuli in gmo.GetChildClassId("inStimuli"):
 							for cmce in instimuli.GetChildClassId("configMoChangeEvent"):
@@ -513,18 +528,20 @@ class UcsHandle:
 										mce = None
 										for wb in self._wbs:
 											if mce == None:
-												mce = UcsMoChangeEvent(eventId = cmce.properties["inEid"], mo = moObj.ToManagedObject(), changeList = moObj.properties.keys())
-											if (wb.fmce(mce)):#TODO: Need to add Filter Support.
-												self._enqueueThreadSignal.acquire()#Acquire the Lock
+												mce = UcsMoChangeEvent(eventId=cmce.properties["inEid"],
+																	   mo=moObj.ToManagedObject(),
+																	   changeList=moObj.properties.keys())
+											if (wb.fmce(mce)):  # TODO: Need to add Filter Support.
+												self._enqueueThreadSignal.acquire()  # Acquire the Lock
 												wb.Enqueue(mce)
 												mce = None
-												self._enqueueThreadSignal.notify()#Notify
-												self._enqueueThreadSignal.release()#Release the Lock
-			
+												self._enqueueThreadSignal.notify()  # Notify
+												self._enqueueThreadSignal.release()  # Release the Lock
+
 			self._enqueueThread = None
 			self._watchWebResponse = None
-			#if self._enqueueThreadSignal._is_owned():
-			self._enqueueThreadSignal.acquire()#Acquire the Lock
+			# if self._enqueueThreadSignal._is_owned():
+			self._enqueueThreadSignal.acquire()  # Acquire the Lock
 			self._enqueueThreadSignal.notifyAll()
 			self._enqueueThreadSignal.release()
 
@@ -537,8 +554,8 @@ class UcsHandle:
 			self._wbslock.release()
 			self._enqueueThread = None
 			self._watchWebResponse = None
-			#if self._enqueueThreadSignal._is_owned():
-			self._enqueueThreadSignal.acquire()#Acquire the Lock
+			# if self._enqueueThreadSignal._is_owned():
+			self._enqueueThreadSignal.acquire()  # Acquire the Lock
 			self._enqueueThreadSignal.notifyAll()
 			self._enqueueThreadSignal.release()
 
@@ -551,13 +568,13 @@ class UcsHandle:
 		self._enqueueThreadSignal.wait()
 		self._enqueueThreadSignal.release()
 
-	def _add_watch_block(self, params, filterCb, capacity = 500, cb=None):
+	def _add_watch_block(self, params, filterCb, capacity=500, cb=None):
 		""" Internal method to add a watch block for starting event monitoring. """
 		if (self._wbslock == None):
 			self._wbslock = Lock()
 
 		self._wbslock.acquire()
-		wb = WatchBlock(params, filterCb, capacity, cb)#Add a List of Watchers
+		wb = WatchBlock(params, filterCb, capacity, cb)  # Add a List of Watchers
 		if ((wb != None) and (wb.cb == None)):
 			wb.cb = wb._dequeue_default_cb
 
@@ -572,8 +589,8 @@ class UcsHandle:
 			return wb
 
 		self._enqueueThreadSignal.acquire()
-		self._enqueueThreadSignal.notify()#Notify
-		self._enqueueThreadSignal.release()#Release the Lock
+		self._enqueueThreadSignal.notify()  # Notify
+		self._enqueueThreadSignal.release()  # Release the Lock
 
 		return wb
 
@@ -597,7 +614,7 @@ class UcsHandle:
 
 	@staticmethod
 	def _stop_wb_callback(signal, frame):
-		for ucs in defaultUcs.keys():
+		for ucs in defaultUcs:
 			if (defaultUcs[ucs]._wbs):
 				del defaultUcs[ucs]._wbs[:]
 			if (defaultUcs[ucs]._enqueueThread):
@@ -606,7 +623,8 @@ class UcsHandle:
 				defaultUcs[ucs]._stop_enqueue_thread()
 		return
 
-	def AddEventHandler(self, classId = None, managedObject = None, prop = None, successValue = [], failureValue = [], transientValue = [], pollSec = None, timeoutSec=None, callBack=None):
+	def AddEventHandler(self, classId=None, managedObject=None, prop=None, successValue=[], failureValue=[],
+						transientValue=[], pollSec=None, timeoutSec=None, callBack=None):
 		"""
 		Adds an event handler.
 		
@@ -620,68 +638,77 @@ class UcsHandle:
 		- callBack specifies the call Back Method or operation that can be given to this method
 		"""
 		from UcsBase import WriteObject, _GenericMO, UcsUtils, WriteUcsWarning, UcsValidationException
+
 		if (self._transactionInProgress):
-			raise UcsValidationException("UCS transaction in progress. Cannot execute WatchUcs. Complete or Undo UCS transaction.")
-			#WriteUcsWarning("UCS transaction in progress. Cannot execute WatchUcs. Complete or Undo UCS transaction.")
-			#return False
+			raise UcsValidationException(
+				"UCS transaction in progress. Cannot execute WatchUcs. Complete or Undo UCS transaction.")
+		# WriteUcsWarning("UCS transaction in progress. Cannot execute WatchUcs. Complete or Undo UCS transaction.")
+		# return False
 
 		if (classId != None and managedObject == None):
 			if (UcsUtils.FindClassIdInMoMetaIgnoreCase(classId) == None):
-				raise UcsValidationException("Invalid ClassId %s specified." %(classId))
-				#raise Exception("Invalid ClassId %s specified." %(classId))
-		
+				raise UcsValidationException("Invalid ClassId %s specified." % (classId))
+				# raise Exception("Invalid ClassId %s specified." %(classId))
+
 		elif (managedObject != None and classId == None):
 			if (UcsUtils.FindClassIdInMoMetaIgnoreCase(managedObject.getattr("classId")) == None):
-				raise UcsValidationException("Object of unknown ClassId %s provided." %(managedObject.getattr("classId")))
-				#raise Exception("Object of unknown ClassId %s provided." %(managedObject.getattr("classId")))
-			
+				raise UcsValidationException(
+					"Object of unknown ClassId %s provided." % (managedObject.getattr("classId")))
+			# raise Exception("Object of unknown ClassId %s provided." %(managedObject.getattr("classId")))
+
 			if prop == None:
 				raise UcsValidationException("prop parameter is not provided.")
-				#raise Exception("prop parameter is not provided.")
-			
+			# raise Exception("prop parameter is not provided.")
+
 			propMeta = UcsUtils.GetUcsPropertyMeta(managedObject.getattr("classId"), UcsUtils.WordU(prop))
 			if propMeta == None:
-				raise UcsValidationException("Unknown Property %s provided." %(prop))
-				#raise Exception("Unknown Property %s provided." %(prop))
-			
+				raise UcsValidationException("Unknown Property %s provided." % (prop))
+			# raise Exception("Unknown Property %s provided." %(prop))
+
 			if not successValue:
 				raise UcsValidationException("successValue parameter is not provided.")
-				#raise Exception("successValue parameter is not provided.")
-			
+				# raise Exception("successValue parameter is not provided.")
+
 		elif (classId != None and managedObject != None):
 			raise UcsValidationException("You cannot provide both classId and mandgedObject")
-			#raise Exception("You cannot provide both classId and mandgedObject")
+		# raise Exception("You cannot provide both classId and mandgedObject")
 
 		wb = None
-		paramDict = {'classId':classId, 'managedObject':managedObject, 'prop':prop, 'successValue':successValue, 'failureValue':failureValue, 'transientValue':transientValue, 'pollSec':pollSec, 'timeoutSec':timeoutSec, 'callBack':callBack, 'startTime':datetime.datetime.now()}
+		paramDict = {'classId': classId, 'managedObject': managedObject, 'prop': prop, 'successValue': successValue,
+					 'failureValue': failureValue, 'transientValue': transientValue, 'pollSec': pollSec,
+					 'timeoutSec': timeoutSec, 'callBack': callBack, 'startTime': datetime.datetime.now()}
 
 		if (classId == None and managedObject == None):
 			def WatchUcsAllFilter(mce):
 				return True
-			wb = self._add_watch_block(params = paramDict, filterCb = WatchUcsAllFilter, cb = callBack)
+
+			wb = self._add_watch_block(params=paramDict, filterCb=WatchUcsAllFilter, cb=callBack)
 		elif (classId != None and managedObject == None):
 			def WatchUcsTypeFilter(mce):
 				if ((mce.mo.getattr("classId")).lower() == classId.lower()):
 					return True
 				return False
-			wb = self._add_watch_block(params = paramDict, filterCb = WatchUcsTypeFilter, cb = callBack)
+
+			wb = self._add_watch_block(params=paramDict, filterCb=WatchUcsTypeFilter, cb=callBack)
 		elif (classId == None and managedObject != None):
 			if (pollSec == None):
 				def WatchUcsMoFilter(mce):
 					if (mce.mo.getattr("Dn") == managedObject.getattr("Dn")):
 						return True
 					return False
-				wb = self._add_watch_block(params = paramDict, filterCb = WatchUcsMoFilter, cb = callBack)
+
+				wb = self._add_watch_block(params=paramDict, filterCb=WatchUcsMoFilter, cb=callBack)
 			else:
 				def WatchUcsNoneFilter(mce):
 					return False
-				wb = self._add_watch_block(params = paramDict, filterCb = WatchUcsNoneFilter, cb = callBack)
+
+				wb = self._add_watch_block(params=paramDict, filterCb=WatchUcsNoneFilter, cb=callBack)
 
 		signal.signal(signal.SIGINT, self._stop_wb_callback)
 
 		if (wb == None):
 			raise UcsValidationException("Error adding WatchBlock...")
-			#raise Exception("Error adding WatchBlock...")
+		# raise Exception("Error adding WatchBlock...")
 
 		if wb != None and len(self._wbs) == 1:
 			self._start_dequeue_thread()
@@ -691,6 +718,7 @@ class UcsHandle:
 	def RemoveEventHandler(self, wb):
 		"""	Removes an event handler. """
 		from UcsBase import WriteUcsWarning
+
 		if wb in self._wbs:
 			self._remove_watch_block(wb)
 		else:
@@ -713,6 +741,7 @@ class UcsHandle:
 	def _dequeue_function(self):
 		""" Internal method to dequeue to events. """
 		from UcsBase import WriteUcsWarning, _GenericMO, WriteObject, UcsUtils
+
 		while len(self._wbs):
 			lowestTimeout = None
 			for wb in self._wbs:
@@ -723,23 +752,25 @@ class UcsHandle:
 				successValue = wb.params["successValue"]
 				failureValue = wb.params["failureValue"]
 				prop = wb.params["prop"]
-				startTime =	wb.params["startTime"]
+				startTime = wb.params["startTime"]
 
 				gmo = None
 				pmo = None
 				mce = None
 
 				if (pollSec != None and managedObject != None):
-					crDn = self.ConfigResolveDn(managedObject.getattr("Dn"), inHierarchical=YesOrNo.FALSE, dumpXml=YesOrNo.FALSE)
+					crDn = self.ConfigResolveDn(managedObject.getattr("Dn"), inHierarchical=YesOrNo.FALSE,
+												dumpXml=YesOrNo.FALSE)
 					if (crDn.errorCode != 0):
-						#TODO: Add Warning/Error messages in Logger.
-						WriteUcsWarning('[Error]: WatchUcs [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
+						# TODO: Add Warning/Error messages in Logger.
+						WriteUcsWarning(
+							'[Error]: WatchUcs [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
 						continue
 
 					for eachMo in crDn.OutConfig.GetChild():
 						pmo = eachMo
 					if pmo == None:
-						#TODO: Add Warning/Error messages in Logger.
+						# TODO: Add Warning/Error messages in Logger.
 						WriteUcsWarning('Mo ' + managedObject.getattr("Dn") + ' not found.')
 						continue
 
@@ -748,7 +779,7 @@ class UcsHandle:
 					ts = datetime.datetime.now() - startTime
 					timeoutMs = 0
 					if (timeoutSec != None):
-						if (ts.seconds>=timeoutSec):#TimeOut
+						if (ts.seconds >= timeoutSec):  # TimeOut
 							self._remove_watch_block(wb)
 							continue
 						timeoutMs = (timeoutSec - ts.seconds)
@@ -764,16 +795,16 @@ class UcsHandle:
 					else:
 						mce = wb.Dequeue(2147483647)
 					if mce == None:
-						#break
+						# break
 						continue
 
-				if (managedObject == None):#Means parameterset is not Mo
+				if (managedObject == None):  # Means parameterset is not Mo
 					if wb.cb != None:
 						wb.cb(mce)
 					continue
 
 				if mce != None:
-					gmo = _GenericMO(mo = mce.mo, option = WriteXmlOption.All)
+					gmo = _GenericMO(mo=mce.mo, option=WriteXmlOption.All)
 
 				attributes = []
 				if mce == None:
@@ -787,66 +818,68 @@ class UcsHandle:
 								wb.cb(mce)
 						else:
 							if wb.cb != None:
-								wb.cb(UcsMoChangeEvent(eventId = 0, mo = pmo, changeList = prop))
+								wb.cb(UcsMoChangeEvent(eventId=0, mo=pmo, changeList=prop))
 
 						if wb != None:
 							self._remove_watch_block(wb)
 							wb = None
 							break
 
-						#return
+						# return
 						continue
 					if (len(failureValue) > 0 and gmo.GetAttribute(UcsUtils.WordU(prop)) in failureValue):
-						#TODO: Add Warning/Error messages in Logger.
-						WriteUcsWarning('Encountered error value ' + gmo.GetAttribute(UcsUtils.WordU(prop)) + ' for property ' + prop + '.')
+						# TODO: Add Warning/Error messages in Logger.
+						WriteUcsWarning('Encountered error value ' + gmo.GetAttribute(
+							UcsUtils.WordU(prop)) + ' for property ' + prop + '.')
 						if mce != None:
 							if wb.cb != None:
 								wb.cb(mce)
 						else:
 							if wb.cb != None:
-								wb.cb(UcsMoChangeEvent(eventId = 0, mo = pmo, changeList = prop))
+								wb.cb(UcsMoChangeEvent(eventId=0, mo=pmo, changeList=prop))
 
 						if wb != None:
-							self._remove_watch_block(wb)#TODO: implement removeStop call back
+							self._remove_watch_block(wb)  # TODO: implement removeStop call back
 							wb = None
 							break
-						
+
 						continue
 					if ((len(transientValue) > 0) and (not gmo.GetAttribute(UcsUtils.WordU(prop)) in transientValue)):
-						#TODO: Add Warning/Error messages in Logger.
-						WriteUcsWarning('Encountered unknown value ' + gmo.GetAttribute(UcsUtils.WordU(prop)) + ' for property ' + prop + '.')
+						# TODO: Add Warning/Error messages in Logger.
+						WriteUcsWarning('Encountered unknown value ' + gmo.GetAttribute(
+							UcsUtils.WordU(prop)) + ' for property ' + prop + '.')
 						if mce != None:
 							if wb.cb != None:
 								wb.cb(mce)
 						else:
 							if wb.cb != None:
-								wb.cb(UcsMoChangeEvent(eventId = 0, mo = pmo, changeList = prop))
+								wb.cb(UcsMoChangeEvent(eventId=0, mo=pmo, changeList=prop))
 
 						if wb != None:
-							self._remove_watch_block(wb)#TODO: implement removeStop call back
+							self._remove_watch_block(wb)  # TODO: implement removeStop call back
 							wb = None
 							break
-						
+
 						continue
 
 				if (pollSec != None):
 					pollMs = pollSec
 					if (timeoutSec != None):
 						pts = datetime.datetime.now() - startTime
-						if (pts.seconds>=timeoutSec):#TimeOut
+						if (pts.seconds >= timeoutSec):  # TimeOut
 							break
 						timeoutMs = (timeoutSec - pts.seconds)
 
 						if (timeoutMs < pollSec):
 							pollMs = pts.seconds
 
-					#time.sleep(pollMs)
+					# time.sleep(pollMs)
 					if (lowestTimeout == None):
 						lowestTimeout = pollMs
 					else:
 						if (lowestTimeout > pollMs):
 							lowestTimeout = pollMs
-							
+
 			if len(self._wbs):
 				self._dequeue_wait(lowestTimeout)
 		return
@@ -859,7 +892,7 @@ class UcsHandle:
 			self._enqueueThreadSignal.wait()
 		self._enqueueThreadSignal.release()
 
-	def StartKvmSession(self, serviceProfile = None, blade = None, rackUnit = None, frameTitle = None, dumpXml=None):
+	def StartKvmSession(self, serviceProfile=None, blade=None, rackUnit=None, frameTitle=None, dumpXml=None):
 		"""
 		Starts KVM session.
 		
@@ -872,24 +905,29 @@ class UcsHandle:
 		from UcsBase import WriteUcsWarning, _GenericMO, UcsUtils, UcsValidationException, UcsException
 		from Mos import MgmtIf
 		import os, subprocess, urllib
-		
+
 		if (self._transactionInProgress):
-			raise UcsValidationException("UCS transaction in progress. Cannot execute StartKvmSession. Complete or Undo UCS transaction.")
-			#raise Exception("UCS transaction in progress. Cannot execute StartKvmSession. Complete or Undo UCS transaction.")
-		
-		if ((blade != None and rackUnit!= None) or (serviceProfile != None and rackUnit!= None) or (blade != None and serviceProfile != None)):
+			raise UcsValidationException(
+				"UCS transaction in progress. Cannot execute StartKvmSession. Complete or Undo UCS transaction.")
+		# raise Exception("UCS transaction in progress. Cannot execute StartKvmSession. Complete or Undo UCS transaction.")
+
+		if ((blade != None and rackUnit != None) or (serviceProfile != None and rackUnit != None) or (
+						blade != None and serviceProfile != None)):
 			raise UcsValidationException("Please provide only one parameter from blade, rackUnit and service profile.")
-			#raise Exception("Please provide only one parameter from blade, rackUnit and service profile.")
-		
+		# raise Exception("Please provide only one parameter from blade, rackUnit and service profile.")
+
 		if (serviceProfile == None and blade == None and rackUnit == None):
-			raise UcsValidationException("Please provide at least one parameter from blade, rackUnit and service profile.")
-			#raise Exception("Please provide at least one parameter from blade, rackUnit and service profile.")
-		
+			raise UcsValidationException(
+				"Please provide at least one parameter from blade, rackUnit and service profile.")
+		# raise Exception("Please provide at least one parameter from blade, rackUnit and service profile.")
+
 		minVersion = UcsVersion('1.4(1a)')
 		if self._version < minVersion:
-			raise UcsValidationException("StartKvmSession not supported for Ucs version older than %s. You are connected to Ucs Version %s" %(minVersion, self._version))
-			#raise Exception("StartKvmSession not supported for Ucs version older than %s. You are connected to Ucs Version %s" %(minVersion, self._version))
-		
+			raise UcsValidationException(
+				"StartKvmSession not supported for Ucs version older than %s. You are connected to Ucs Version %s" % (
+					minVersion, self._version))
+		# raise Exception("StartKvmSession not supported for Ucs version older than %s. You are connected to Ucs Version %s" %(minVersion, self._version))
+
 		PARAM_CENTRALE_PASSWORD = "centralePassword"
 		PARAM_CENTRALE_USER = "centraleUser"
 		PARAM_DN = "dn"
@@ -900,42 +938,44 @@ class UcsHandle:
 		PARAM_KVM_USER = "kvmUser"
 		PARAM_TEMP_UNPW = "tempunpw"
 		PARAM_KVM_DN = "kvmDn"
-		
+
 		_lock = Lock()
 		sp_bool = False
 		nvc = {}
 		dn = None
 		pnDn = None
 		ipAddress = None
-		
-		if ((blade != None) or (rackUnit!= None)):
+
+		if ((blade != None) or (rackUnit != None)):
 			if (blade != None):
 				pnDn = blade.getattr("Dn")
 			else:
 				pnDn = rackUnit.getattr("Dn")
-			
+
 			nvc[PARAM_DN] = pnDn
 			if (frameTitle == None):
 				frameTitle = self._ucs + ':' + pnDn + ' KVM Console'
-				
+
 			nvc[PARAM_FRAME_TITLE] = frameTitle
 			nvc[PARAM_KVM_PN_DN] = pnDn
-			
-			cs = self.ConfigScope(dn = pnDn, inClass = NamingId.MGMT_IF, inFilter = None, inRecursive = YesOrNo.FALSE, inHierarchical = YesOrNo.FALSE, dumpXml = dumpXml)
+
+			cs = self.ConfigScope(dn=pnDn, inClass=NamingId.MGMT_IF, inFilter=None, inRecursive=YesOrNo.FALSE,
+								  inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
 			if (cs.errorCode == 0):
 				for mgmtIf in cs.OutConfigs.GetChild():
-					if ((mgmtIf.getattr("Subject") == MgmtIf.CONST_SUBJECT_BLADE) and (mgmtIf.getattr("AdminState") == MgmtIf.CONST_ADMIN_STATE_ENABLE)):
+					if ((mgmtIf.getattr("Subject") == MgmtIf.CONST_SUBJECT_BLADE) and (
+								mgmtIf.getattr("AdminState") == MgmtIf.CONST_ADMIN_STATE_ENABLE)):
 						ipAddress = mgmtIf.getattr("ExtIp")
 			else:
 				raise UcsException(cs.errorCode, cs.errorDescr)
-				#raise Exception('[Error]: StartKvmSession [Code]:' + cs.errorCode + ' [Description]:' + cs.errorDescr)
-			
-			#If the blade does not have an IP, check if a service profile is associated
+			# raise Exception('[Error]: StartKvmSession [Code]:' + cs.errorCode + ' [Description]:' + cs.errorDescr)
+
+			# If the blade does not have an IP, check if a service profile is associated
 			if ((ipAddress == None) or (ipAddress == '0.0.0.0')):
 				crDn = self.ConfigResolveDn(pnDn, inHierarchical=YesOrNo.TRUE, dumpXml=dumpXml)
 				if (crDn.errorCode != 0):
 					raise UcsException(crDn.errorCode, crDn.errorDescr)
-					#raise Exception('[Error]: StartKvmSession [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
+				# raise Exception('[Error]: StartKvmSession [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
 
 				for mo in crDn.OutConfig.GetChild():
 					dn = mo.getattr("AssignedToDn")
@@ -948,56 +988,59 @@ class UcsHandle:
 				if (frameTitle == None):
 					frameTitle = self._ucs + ':' + dn + ' KVM Console'
 				nvc[PARAM_FRAME_TITLE] = frameTitle
-			
+
 			nvc[PARAM_KVM_DN] = dn
 			crDn = self.ConfigResolveDn(dn, inHierarchical=YesOrNo.TRUE, dumpXml=dumpXml)
 			if (crDn.errorCode != 0):
 				raise UcsException(crDn.errorCode, crDn.errorDescr)
-				#raise Exception('[Error]: StartKvmSession [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
-			
+			# raise Exception('[Error]: StartKvmSession [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
+
 			spMo = None
 			for mo in crDn.OutConfig.GetChild():
 				spMo = mo
 			if spMo == None:
 				raise Exception('Service Profile not found.')
-			
+
 			if spMo.getattr("PnDn") == None:
 				raise UcsValidationException('Service Profile is not associated with blade or rackUnit.')
-				#raise Exception('Service Profile is not associated with blade or rackUnit.')
-			
+			# raise Exception('Service Profile is not associated with blade or rackUnit.')
+
 			pnDn = spMo.getattr("PnDn")
 			nvc[PARAM_DN] = pnDn
-			
-			crc = self.ConfigResolveChildren('vnicIpV4Addr', dn, None, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)#TODO:replace classId with proper constantafter generating mos.py or Constant.py
+
+			crc = self.ConfigResolveChildren('vnicIpV4Addr', dn, None, inHierarchical=YesOrNo.FALSE,
+											 dumpXml=dumpXml)  # TODO:replace classId with proper constantafter generating mos.py or Constant.py
 			if (crc.errorCode == 0):
 				for mo in crc.OutConfigs.GetChild():
 					gmo = _GenericMO(mo=mo, option=WriteXmlOption.All)
-					if not('Addr' in gmo.properties.keys()):
+					if not ('Addr' in gmo.properties):
 						continue
-					
+
 					ipAddress = gmo.GetAttribute('Addr')
 					if ipAddress != None:
 						break
 			else:
 				raise UcsException(crc.errorCode, crc.errorDescr)
-				#raise Exception('[Error]: StartKvmSession [Code]:' + crc.errorCode + ' [Description]:' + crc.errorDescr)
-			
-		if (((ipAddress == None) or (ipAddress == '0.0.0.0')) and (serviceProfile != None )):	
-			cs = self.ConfigScope(dn = pnDn, inClass = NamingId.MGMT_IF, inFilter = None, inRecursive = YesOrNo.FALSE, inHierarchical = YesOrNo.FALSE, dumpXml = dumpXml)
+				# raise Exception('[Error]: StartKvmSession [Code]:' + crc.errorCode + ' [Description]:' + crc.errorDescr)
+
+		if (((ipAddress == None) or (ipAddress == '0.0.0.0')) and (serviceProfile != None)):
+			cs = self.ConfigScope(dn=pnDn, inClass=NamingId.MGMT_IF, inFilter=None, inRecursive=YesOrNo.FALSE,
+								  inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
 			if (cs.errorCode == 0):
 				for mgmtIf in cs.OutConfigs.GetChild():
-					if ((mgmtIf.getattr("Subject") == MgmtIf.CONST_SUBJECT_BLADE) and (mgmtIf.getattr("AdminState") == MgmtIf.CONST_ADMIN_STATE_ENABLE)):
+					if ((mgmtIf.getattr("Subject") == MgmtIf.CONST_SUBJECT_BLADE) and (
+								mgmtIf.getattr("AdminState") == MgmtIf.CONST_ADMIN_STATE_ENABLE)):
 						ipAddress = mgmtIf.getattr("ExtIp")
 			else:
 				raise UcsException(cs.errorCode, cs.errorDescr)
-				#raise Exception('[Error]: StartKvmSession [Code]:' + cs.errorCode + ' [Description]:' + cs.errorDescr)
-		
+				# raise Exception('[Error]: StartKvmSession [Code]:' + cs.errorCode + ' [Description]:' + cs.errorDescr)
+
 		if ((ipAddress == None) or (ipAddress == '0.0.0.0')):
 			raise UcsValidationException("No assigned IP address to use.")
-			#raise Exception("No assigned IP address to use.")
-		
+		# raise Exception("No assigned IP address to use.")
+
 		nvc[PARAM_KVM_IP_ADDR] = ipAddress
-		cat = self.AaaGetNComputeAuthTokenByDn(pnDn, 2, dumpXml = dumpXml)
+		cat = self.AaaGetNComputeAuthTokenByDn(pnDn, 2, dumpXml=dumpXml)
 		if (cat.errorCode == 0):
 			nvc[PARAM_CENTRALE_PASSWORD] = cat.OutTokens.split(',')[0]
 			nvc[PARAM_CENTRALE_USER] = cat.OutUser
@@ -1005,69 +1048,68 @@ class UcsHandle:
 			nvc[PARAM_KVM_USER] = cat.OutUser
 		else:
 			raise UcsException(cat.errorCode, cat.errorDescr)
-			#raise Exception('[Error]: StartKvmSession [Code]:' + cat.errorCode + ' [Description]:' + cat.errorDescr)
-		
-		
+		# raise Exception('[Error]: StartKvmSession [Code]:' + cat.errorCode + ' [Description]:' + cat.errorDescr)
+
 		nvc[PARAM_TEMP_UNPW] = "true"
-		kvmUrl = '%s/ucsm/kvm.jnlp?%s' %(self.Uri(), urllib.urlencode(nvc))
-		
+		kvmUrl = '%s/ucsm/kvm.jnlp?%s' % (self.Uri(), urllib.urlencode(nvc))
+
 		installPath = UcsUtils.GetJavaInstallationPath()
 		if installPath != None:
 			subprocess.call([installPath, kvmUrl])
 		else:
-			#TODO: Add Warning/Error messages in Logger.
+			# TODO: Add Warning/Error messages in Logger.
 			WriteUcsWarning("Java is not installed on System.")
 			p = subprocess.Popen(kvmUrl)
-	
+
 	def StartGuiSession(self):
 		"""	Launches the UCSM GUI via specific UCS handle. """
 		from UcsBase import WriteUcsWarning, UcsUtils, UcsValidationException
 		import urllib, tempfile, fileinput, os, subprocess, platform
-		
-		osSupport = ["Windows","Linux","Microsoft"]
-		
+
+		osSupport = ["Windows", "Linux", "Microsoft"]
+
 		if platform.system() not in osSupport:
 			raise UcsValidationException("Currently works with Windows OS and Ubuntu")
-			#raise Exception("Currently works with Windows OS and Ubuntu")
-		
+		# raise Exception("Currently works with Windows OS and Ubuntu")
+
 		try:
 			javawsPath = UcsUtils.GetJavaInstallationPath()
-			#print r"%s" %(javawsPath)
+			# print r"%s" %(javawsPath)
 			if javawsPath != None:
-				
-				url = "%s/ucsm/ucsm.jnlp" %(self.Uri())
+
+				url = "%s/ucsm/ucsm.jnlp" % (self.Uri())
 				source = urllib.urlopen(url).read()
-				
+
 				jnlpdir = tempfile.gettempdir()
 				jnlpfile = os.path.join(jnlpdir, "temp.jnlp")
-				
+
 				if os.path.exists(jnlpfile):
 					os.remove(jnlpfile)
-				
+
 				jnlpFH = open(jnlpfile, "w+")
 				jnlpFH.write(source)
 				jnlpFH.close()
-				
+
 				for line in fileinput.input(jnlpfile, inplace=1):
 					if re.search(r'^\s*</resources>\s*$', line):
-							print '\t<property name="log.show.encrypted" value="true"/>'
+						print '\t<property name="log.show.encrypted" value="true"/>'
 					print line,
-				
+
 				subprocess.call([javawsPath, jnlpfile])
-				
+
 				if os.path.exists(jnlpfile):
 					os.remove(jnlpfile)
 			else:
 				return None
-				
+
 		except Exception, err:
 			fileinput.close()
 			if os.path.exists(jnlpfile):
 				os.remove(jnlpfile)
 			raise
-			#WriteUcsWarning("Not able to start Gui Session.")
-			
-	def BackupUcs(self, type, pathPattern, timeoutSec = 600, preservePooledValues = False, dumpXml=None):
+			# WriteUcsWarning("Not able to start Gui Session.")
+
+	def BackupUcs(self, type, pathPattern, timeoutSec=600, preservePooledValues=False, dumpXml=None):
 		"""
 		Creates and downloads the backup of UCS.
 		
@@ -1075,22 +1117,24 @@ class UcsHandle:
 		- pathPattern specifies the path of the Backup file. 
 		- timeoutSec specifies the time in seconds for which method waits for the backUp file to generate else exit.
 		"""
-		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsValidationException, UcsException
+		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsValidationException, \
+			UcsException
 		from Mos import TopSystem, MgmtBackup
 		from Ucs import ConfigConfig
 		import os, platform
-		
+
 		if (self._transactionInProgress):
-			raise UcsValidationException("UCS transaction in progress. Cannot execute BackupUcs. Complete or Undo UCS transaction.")
-			#raise Exception("UCS transaction in progress. Cannot execute BackupUcs. Complete or Undo UCS transaction.")
-		if (type== None or pathPattern == None):
+			raise UcsValidationException(
+				"UCS transaction in progress. Cannot execute BackupUcs. Complete or Undo UCS transaction.")
+		# raise Exception("UCS transaction in progress. Cannot execute BackupUcs. Complete or Undo UCS transaction.")
+		if (type == None or pathPattern == None):
 			raise UcsValidationException("type or pathPattern parameter is not provided.")
-			#raise Exception("Please provide type/pathPattern parameter.")
-		if type=="fullstate" and not pathPattern.endswith('.tar.gz'):
+		# raise Exception("Please provide type/pathPattern parameter.")
+		if type == "fullstate" and not pathPattern.endswith('.tar.gz'):
 			raise UcsValidationException('pathPattern should end with .tar.gz')
 		elif not pathPattern.endswith('.xml'):
 			raise UcsValidationException('pathPattern should end with .xml')
-		
+
 		directory = os.path.dirname(pathPattern)
 		if not (os.path.exists(directory)):
 			os.makedirs(directory)
@@ -1098,10 +1142,10 @@ class UcsHandle:
 		mgmtBackup = ManagedObject(NamingId.MGMT_BACKUP)
 		mgmtBackup.Hostname = hostname
 		dn = UcsUtils.MakeDn([ManagedObject(NamingId.TOP_SYSTEM).MakeRn(), mgmtBackup.MakeRn()])
-			
+
 		if (type == MgmtBackup.CONST_TYPE_FULL_STATE or type == MgmtBackup.CONST_TYPE_CONFIG_SYSTEM):
 			preservePooledValues = False
-		
+
 		mgmtBackup = ManagedObject(NamingId.MGMT_BACKUP)
 		mgmtBackup.AdminState = MgmtBackup.CONST_ADMIN_STATE_ENABLED
 		mgmtBackup.Dn = dn
@@ -1109,7 +1153,7 @@ class UcsHandle:
 		mgmtBackup.Proto = MgmtBackup.CONST_PROTO_HTTP
 		mgmtBackup.Type = type
 		mgmtBackup.RemoteFile = pathPattern
-		
+
 		if (preservePooledValues):
 			mgmtBackup.PreservePooledValues = MgmtBackup.CONST_PRESERVE_POOLED_VALUES_YES
 		else:
@@ -1117,15 +1161,15 @@ class UcsHandle:
 
 		inConfig = ConfigConfig()
 		inConfig.AddChild(mgmtBackup)
-		ccm = self.ConfigConfMo(dn = dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+		ccm = self.ConfigConfMo(dn=dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
 		if (ccm.errorCode != 0):
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-			#raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+		# raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
 
 		duration = timeoutSec
 		poll_interval = 2
-		
-		#Checking for the backup to compete.
+
+		# Checking for the backup to compete.
 		adminStateTemp = None
 		crDn = None
 		while (True):
@@ -1135,49 +1179,48 @@ class UcsHandle:
 					adminStateTemp = eachMgmtDn.AdminState
 			else:
 				raise UcsException(crDn.errorCode, crDn.errorDescr)
-				#raise Exception('[Error]: BackupUcs [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
-			
-			#Break condition:- if state id disabled then break
-			if(adminStateTemp == MgmtBackup.CONST_ADMIN_STATE_DISABLED):
+			# raise Exception('[Error]: BackupUcs [Code]:' + crDn.errorCode + ' [Description]:' + crDn.errorDescr)
+
+			# Break condition:- if state id disabled then break
+			if (adminStateTemp == MgmtBackup.CONST_ADMIN_STATE_DISABLED):
 				break
-			
+
 			time.sleep(min(duration, poll_interval))
-			duration = max(0, (duration-poll_interval))
-			
+			duration = max(0, (duration - poll_interval))
+
 			if duration == 0:
 				mgmtBackup = ManagedObject(NamingId.MGMT_BACKUP)
 				mgmtBackup.Dn = dn
 				mgmtBackup.Status = Status.DELETED
 				inConfig.AddChild(mgmtBackup)
-				ccm = self.ConfigConfMo(dn = dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+				ccm = self.ConfigConfMo(dn=dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
 				if (ccm.errorCode != 0):
 					raise UcsException(ccm.errorCode, ccm.errorDescr)
-					#raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+				# raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
 				raise UcsValidationException('BackupUcs timed out')
-				#raise Exception('BackupUcs timed out')
-			
-		WriteObject(crDn.OutConfig.GetChild())#BackUp Complete.
-		
+				# raise Exception('BackupUcs timed out')
+
+		WriteObject(crDn.OutConfig.GetChild())  # BackUp Complete.
+
 		fileSource = "backupfile/" + os.path.basename(pathPattern)
-		
+
 		try:
 			UcsUtils.DownloadFile(self, fileSource, pathPattern)
 		except Exception, err:
 			WriteUcsWarning(str(err))
-		
+
 		inConfig = ConfigConfig()
 		mgmtBackup = ManagedObject(NamingId.MGMT_BACKUP)
 		mgmtBackup.Dn = dn
 		mgmtBackup.Status = Status.DELETED
 		inConfig.AddChild(mgmtBackup)
-		ccm = self.ConfigConfMo(dn = dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+		ccm = self.ConfigConfMo(dn=dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
 		if (ccm.errorCode != 0):
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-			#raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
-		
+		# raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+
 		return crDn.OutConfig.GetChild()
-	
-	
+
 	def ImportUcsBackup(self, path=None, merge=False, dumpXml=False):
 		"""
 		Imports backUp.
@@ -1187,33 +1230,35 @@ class UcsHandle:
 		- path specifies path of the backup file.
 		- merge specifies whether to merge the backup configuration with the existing UCSM configuration. 
 		"""
-		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsException, UcsValidationException
+		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsException, \
+			UcsValidationException
 		from Ucs import ConfigConfig
 		from Mos import MgmtImporter
 		from datetime import datetime
-		
+
 		if (self._transactionInProgress):
-			raise UcsValidationException("UCS transaction in progress. Cannot execute ImportUcsBackup. Complete or Undo UCS transaction.")
-			#raise Exception("UCS transaction in progress. Cannot execute ImportUcsBackup. Complete or Undo UCS transaction.")
+			raise UcsValidationException(
+				"UCS transaction in progress. Cannot execute ImportUcsBackup. Complete or Undo UCS transaction.")
+		# raise Exception("UCS transaction in progress. Cannot execute ImportUcsBackup. Complete or Undo UCS transaction.")
 
 		if not path:
 			raise UcsValidationException("path parameter is not provided.")
-			#raise Exception("Please provide path")
-		
+		# raise Exception("Please provide path")
+
 		if not os.path.exists(path):
-			raise UcsValidationException("Backup File not found <%s>" %(path))
-			#raise Exception("Backup File not found <%s>" %(path))
-		
+			raise UcsValidationException("Backup File not found <%s>" % (path))
+		# raise Exception("Backup File not found <%s>" %(path))
+
 		dn = None
 		filePath = path
 		localFile = os.path.basename(filePath)
-		
+
 		topSystem = ManagedObject(NamingId.TOP_SYSTEM)
 		mgmtImporter = ManagedObject(NamingId.MGMT_IMPORTER)
-		
+
 		mgmtImporter.Hostname = os.environ['COMPUTERNAME'].lower() + datetime.now().strftime('%Y%m%d%H%M')
 		dn = UcsUtils.MakeDn([topSystem.MakeRn(), mgmtImporter.MakeRn()])
-		
+
 		mgmtImporter.Dn = dn
 		mgmtImporter.Status = Status.CREATED
 		mgmtImporter.RemoteFile = filePath
@@ -1224,110 +1269,114 @@ class UcsHandle:
 			mgmtImporter.Action = MgmtImporter.CONST_ACTION_MERGE
 		else:
 			mgmtImporter.Action = MgmtImporter.CONST_ACTION_REPLACE
-		
+
 		inConfig = ConfigConfig()
 		inConfig.AddChild(mgmtImporter)
-		
-		uri = "%s/operations/file-%s/importconfig.txt" %(self.Uri(),localFile)
-		
+
+		uri = "%s/operations/file-%s/importconfig.txt" % (self.Uri(), localFile)
+
 		if sys.version_info < (2, 6):
-			uploadFileHandle = open(filePath,'rb')
+			uploadFileHandle = open(filePath, 'rb')
 			stream = uploadFileHandle.read()
-		else:	
+		else:
 			progress = Progress()
 			stream = file_with_callback(filePath, 'rb', progress.update, filePath)
-		
+
 		request = urllib2.Request(uri)
-		request.add_header('Cookie','ucsm-cookie=%s' %(self._cookie))
+		request.add_header('Cookie', 'ucsm-cookie=%s' % (self._cookie))
 		request.add_data(stream)
-		
+
 		response = urllib2.urlopen(request).read()
-		
+
 		if not response:
 			raise UcsValidationException("Unable to upload properly.")
-			#WriteUcsWarning("Unable to upload properly.")
-		
-		ccm = self.ConfigConfMo(dn = dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
-		
+		# WriteUcsWarning("Unable to upload properly.")
+
+		ccm = self.ConfigConfMo(dn=dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+
 		if (ccm.errorCode != 0):
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-			#raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
-		
+		# raise Exception('[Error]: BackupUcs [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+
 		return ccm.OutConfig.GetChild()
 
-	def SendUcsFirmware(self,path=None,dumpXml=False):
+	def SendUcsFirmware(self, path=None, dumpXml=False):
 		"""
 		Uploads a specific CCO Image on UCS.
 		
 		- path specifies the path of the image to be uploaded.
 		"""
-		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsValidationException, UcsException
+		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsValidationException, \
+			UcsException
 		from Ucs import ConfigConfig
 		from Mos import FirmwareDownloader
 
 		if (self._transactionInProgress):
-			raise UcsValidationException("UCS transaction in progress. Cannot execute SendUcsFirmware. Complete or Undo UCS transaction.")
-			#raise Exception("UCS transaction in progress. Cannot execute SendUcsFirmware. Complete or Undo UCS transaction.")
+			raise UcsValidationException(
+				"UCS transaction in progress. Cannot execute SendUcsFirmware. Complete or Undo UCS transaction.")
+		# raise Exception("UCS transaction in progress. Cannot execute SendUcsFirmware. Complete or Undo UCS transaction.")
 
 		if not path:
 			raise UcsValidationException("path parameter is not provided.")
-			#raise Exception("Please provide path")
-		
+		# raise Exception("Please provide path")
+
 		if not os.path.exists(path):
-			raise UcsValidationException("Image not found <%s>" %(path))
-			#raise Exception("Image not found <%s>" %(path))	
-				
+			raise UcsValidationException("Image not found <%s>" % (path))
+		# raise Exception("Image not found <%s>" %(path))	
+
 		dn = None
 		filePath = path
 		localFile = os.path.basename(filePath)
-		
+
 		# Exit if image already exist on UCSM 
 		topSystem = ManagedObject(NamingId.TOP_SYSTEM)
 		firmwareCatalogue = ManagedObject(NamingId.FIRMWARE_CATALOGUE)
 		firmwareDistributable = ManagedObject(NamingId.FIRMWARE_DISTRIBUTABLE)
-		firmwareDistributable.Name = localFile								
-	
+		firmwareDistributable.Name = localFile
+
 		dn = UcsUtils.MakeDn([topSystem.MakeRn(), firmwareCatalogue.MakeRn(), firmwareDistributable.MakeRn()])
 		crDn = self.ConfigResolveDn(dn, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
-		
-		if ( crDn.OutConfig.GetChildCount() > 0 ):
-			raise UcsValidationException("Image file <%s> already exist on FI." %(filePath))
-			#raise Exception("Image file <%s> already exist on FI." %(filePath))
-		
+
+		if (crDn.OutConfig.GetChildCount() > 0):
+			raise UcsValidationException("Image file <%s> already exist on FI." % (filePath))
+		# raise Exception("Image file <%s> already exist on FI." %(filePath))
+
 		# Create object of type <firmwareDownloader>
 		firmwareDownloader = ManagedObject(NamingId.FIRMWARE_DOWNLOADER)
 		firmwareDownloader.FileName = localFile
 		dn = UcsUtils.MakeDn([topSystem.MakeRn(), firmwareCatalogue.MakeRn(), firmwareDownloader.MakeRn()])
-		
+
 		firmwareDownloader.Dn = dn
 		firmwareDownloader.Status = Status.CREATED
 		firmwareDownloader.FileName = localFile
 		firmwareDownloader.Server = FirmwareDownloader.CONST_PROTOCOL_LOCAL
 		firmwareDownloader.Protocol = FirmwareDownloader.CONST_PROTOCOL_LOCAL
-		
+
 		inConfig = ConfigConfig()
 		inConfig.AddChild(firmwareDownloader)
-		
-		uri = "%s/operations/file-%s/image.txt" %(self.Uri(),localFile)
-	
+
+		uri = "%s/operations/file-%s/image.txt" % (self.Uri(), localFile)
+
 		progress = Progress()
 		stream = file_with_callback(filePath, 'rb', progress.update, filePath)
 		request = urllib2.Request(uri)
-		request.add_header('Cookie','ucsm-cookie=%s' %(self._cookie))
+		request.add_header('Cookie', 'ucsm-cookie=%s' % (self._cookie))
 		request.add_data(stream)
-		
+
 		response = urllib2.urlopen(request).read()
 		if not response:
 			raise UcsValidationException("Unable to upload properly.")
-			#WriteUcsWarning("Unable to upload properly.")
-		
-		ccm = self.ConfigConfMo(dn = dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+		# WriteUcsWarning("Unable to upload properly.")
+
+		ccm = self.ConfigConfMo(dn=dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
 		if (ccm.errorCode != 0):
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-		
+
 		return ccm.OutConfig.GetChild()
-		
-	def GetTechSupport(self, pathPattern , ucsManager=False, ucsMgmt=False, chassisId=None, cimcId=None, adapterId=None, iomId=None, fexId=None, rackServerId=None, rackAdapterId=None, timeoutSec=600, removeFromUcs=False, dumpXml=None):
+
+	def GetTechSupport(self, pathPattern, ucsManager=False, ucsMgmt=False, chassisId=None, cimcId=None, adapterId=None,
+					   iomId=None, fexId=None, rackServerId=None, rackAdapterId=None, timeoutSec=600,
+					   removeFromUcs=False, dumpXml=None):
 		"""
 		Creates and downloads the technical support data for the respective UCSM.
 		
@@ -1345,38 +1394,42 @@ class UcsHandle:
 		- timeoutSec specifies the time in seconds after that the operation will terminate.
 		- removeFromUcs, if specified as True then the techincal support data file will be removed from the UCS.
 		"""
-		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsValidationException, UcsException
+		from UcsBase import WriteUcsWarning, UcsUtils, ManagedObject, WriteObject, UcsUtils, UcsValidationException, \
+			UcsException
 		from Mos import SysdebugTechSupport, SysdebugTechSupportCmdOpt
 		from Ucs import ConfigConfig
 		import os
-		
+
 		if (self._transactionInProgress):
-			raise UcsValidationException("UCS transaction in progress. Cannot execute GetTechSupport. Complete or Undo UCS transaction.")
-			#raise Exception("UCS transaction in progress. Cannot execute GetTechSupport. Complete or Undo UCS transaction.")
-		
+			raise UcsValidationException(
+				"UCS transaction in progress. Cannot execute GetTechSupport. Complete or Undo UCS transaction.")
+		# raise Exception("UCS transaction in progress. Cannot execute GetTechSupport. Complete or Undo UCS transaction.")
+
 		if (pathPattern == None):
 			raise UcsValidationException("pathPattern parameter is not provided.")
-			#raise Exception("Please provide pathPattern parameter.")
-		
+		# raise Exception("Please provide pathPattern parameter.")
+
 		if not pathPattern.endswith('.tar'):
 			raise UcsValidationException('pathPattern should end with .tar')
-		
+
 		directory = os.path.dirname(pathPattern)
 		if not (os.path.exists(directory)):
 			os.makedirs(directory)
-		
+
 		inConfig = ConfigConfig()
 		techSupportObj = None
-		
+
 		dt1 = datetime.datetime(1970, 1, 1, 12, 0, 0, 0)
 		dt2 = datetime.datetime.utcnow()
-		
-		ds = (dt2-dt1)
-		creationTS = (ds.microseconds/1000000) + (ds.days*24*60*60) + ds.seconds#Converting timedelta in to total seconds for Python version compatibility.
+
+		ds = (dt2 - dt1)
+		creationTS = (ds.microseconds / 1000000) + (
+			ds.days * 24 * 60 * 60) + ds.seconds  # Converting timedelta in to total seconds for Python version compatibility.
 		sysdebug = ManagedObject(NamingId.SYSDEBUG_TECH_SUPPORT)
 		sysdebug.CreationTS = str(creationTS)
-		dn = UcsUtils.MakeDn([ManagedObject(NamingId.TOP_SYSTEM).MakeRn(), ManagedObject(NamingId.SYSDEBUG_TECH_SUP_FILE_REPOSITORY).MakeRn(), sysdebug.MakeRn()])
-		
+		dn = UcsUtils.MakeDn([ManagedObject(NamingId.TOP_SYSTEM).MakeRn(),
+							  ManagedObject(NamingId.SYSDEBUG_TECH_SUP_FILE_REPOSITORY).MakeRn(), sysdebug.MakeRn()])
+
 		sysdebugTechSupport = ManagedObject(NamingId.SYSDEBUG_TECH_SUPPORT)
 		sysdebugTechSupport.DN = dn
 		sysdebugTechSupport.AdminState = SysdebugTechSupport.CONST_ADMIN_STATE_START
@@ -1384,17 +1437,17 @@ class UcsHandle:
 		sysdebugTechSupport.Status = Status.CREATED
 
 		sysdebugTechSupportCmdOpt = ManagedObject(NamingId.SYSDEBUG_TECH_SUPPORT_CMD_OPT)
-		
-		#Parameter Set UCSM
-		if (ucsManager):			
+
+		# Parameter Set UCSM
+		if (ucsManager):
 			sysdebugTechSupportCmdOpt.MajorOptType = SysdebugTechSupportCmdOpt.CONST_MAJOR_OPT_TYPE_UCSM
 			sysdebugTechSupportCmdOpt.Rn = sysdebugTechSupportCmdOpt.MakeRn()
-			
+
 			sysdebugTechSupport.AddChild(sysdebugTechSupportCmdOpt)
-		elif (ucsMgmt):			
+		elif (ucsMgmt):
 			sysdebugTechSupportCmdOpt.MajorOptType = SysdebugTechSupportCmdOpt.CONST_MAJOR_OPT_TYPE_UCSM_MGMT
 			sysdebugTechSupportCmdOpt.Rn = sysdebugTechSupportCmdOpt.MakeRn()
-			
+
 			sysdebugTechSupport.AddChild(sysdebugTechSupportCmdOpt)
 		elif (chassisId != None):
 			if (cimcId != None):
@@ -1406,14 +1459,14 @@ class UcsHandle:
 				else:
 					sysdebugTechSupportCmdOpt.CimcAdapterId = str(adapterId)
 				sysdebugTechSupportCmdOpt.Rn = sysdebugTechSupportCmdOpt.MakeRn()
-				
+
 				sysdebugTechSupport.AddChild(sysdebugTechSupportCmdOpt)
 			elif (iomId != None):
 				sysdebugTechSupportCmdOpt.ChassisIomId = str(iomId)
 				sysdebugTechSupportCmdOpt.ChassisId = str(chassisId)
 				sysdebugTechSupportCmdOpt.MajorOptType = SysdebugTechSupportCmdOpt.CONST_MAJOR_OPT_TYPE_CHASSIS
 				sysdebugTechSupportCmdOpt.Rn = sysdebugTechSupportCmdOpt.MakeRn()
-				
+
 				sysdebugTechSupport.AddChild(sysdebugTechSupportCmdOpt)
 		elif (rackServerId != None):
 			sysdebugTechSupportCmdOpt.RACK_SERVER_ID = str(iomId)
@@ -1423,29 +1476,29 @@ class UcsHandle:
 				sysdebugTechSupportCmdOpt.RACK_SERVER_ADAPTER_ID = str(rackAdapterId)
 			sysdebugTechSupportCmdOpt.MajorOptType = SysdebugTechSupportCmdOpt.CONST_MAJOR_OPT_TYPE_SERVER
 			sysdebugTechSupportCmdOpt.Rn = sysdebugTechSupportCmdOpt.MakeRn()
-			
+
 			sysdebugTechSupport.AddChild(sysdebugTechSupportCmdOpt)
 		elif (fexId != None):
 			sysdebugTechSupportCmdOpt.FAB_EXT_ID = str(iomId)
 			sysdebugTechSupportCmdOpt.MajorOptType = SysdebugTechSupportCmdOpt.CONST_MAJOR_OPT_TYPE_FEX
 			sysdebugTechSupportCmdOpt.Rn = sysdebugTechSupportCmdOpt.MakeRn()
-			
+
 			sysdebugTechSupport.AddChild(sysdebugTechSupportCmdOpt)
-			
+
 		if (sysdebugTechSupport.GetChildCount() == 0):
 			sysdebugTechSupport = None
 			sysdebugTechSupportCmdOpt = None
 			inConfig = None
 		else:
 			inConfig.AddChild(sysdebugTechSupport)
-			
-		ccm = self.ConfigConfMo(dn = dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
-		
+
+		ccm = self.ConfigConfMo(dn=dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+
 		duration = timeoutSec
 		poll_interval = 2
 		crd = None
 		if (ccm.errorCode == 0):
-			#WriteUcsWarning('Waiting for the Tech Support file to become available (this may take several minutes).')
+			# WriteUcsWarning('Waiting for the Tech Support file to become available (this may take several minutes).')
 			status = False
 			while (True):
 				crd = self.ConfigResolveDn(dn, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
@@ -1456,55 +1509,56 @@ class UcsHandle:
 								status = True
 					else:
 						raise UcsValidationException('Failed to create the TechSupport file.')
-						#raise Exception('Failed to create the TechSupport file.')
-					
+						# raise Exception('Failed to create the TechSupport file.')
+
 				else:
 					raise UcsException(crd.errorCode, crd.errorDescr)
-					#raise Exception('[Error]: GetTechSupport [Code]:' + crd.errorCode + ' [Description]:' + crd.errorDescr)
-				
-				
-				if(status):
+				# raise Exception('[Error]: GetTechSupport [Code]:' + crd.errorCode + ' [Description]:' + crd.errorDescr)
+
+				if (status):
 					break
-				
+
 				time.sleep(min(duration, poll_interval))
-				duration = max(0, (duration-poll_interval))
-				
+				duration = max(0, (duration - poll_interval))
+
 				if duration == 0:
 					inConfig = ConfigConfig()
 					sysdebugTechSupport = ManagedObject(NamingId.SYSDEBUG_TECH_SUPPORT)
 					sysdebugTechSupport.DN = dn
 					sysdebugTechSupport.Status = Status.DELETED
 					inConfig.AddChild(sysdebugTechSupport)
-					ccmi = self.ConfigConfMo(dn = dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+					ccmi = self.ConfigConfMo(dn=dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
 					if (ccmi.errorCode != 0):
-						WriteUcsWarning('[Error]: GetTechSupport [Code]:' + ccmi.errorCode + ' [Description]:' + ccmi.errorDescr)
+						WriteUcsWarning(
+							'[Error]: GetTechSupport [Code]:' + ccmi.errorCode + ' [Description]:' + ccmi.errorDescr)
 					raise UcsValidationException('TechSupport file generation timed out')
-					#raise Exception('TechSupport file generation timed out')
-			
-			#WriteObject(crd.OutConfig.GetChild())
+					# raise Exception('TechSupport file generation timed out')
+
+			# WriteObject(crd.OutConfig.GetChild())
 			for item in crd.OutConfig.GetChild():
 				fileSource = "techsupport/" + item.Name
-			
+
 				try:
 					UcsUtils.DownloadFile(self, fileSource, pathPattern)
 				except Exception, err:
 					WriteUcsWarning(str(err))
-			
+
 				if (removeFromUcs):
 					inConfig = ConfigConfig()
 					sysdebugTechSupport = ManagedObject(NamingId.SYSDEBUG_TECH_SUPPORT)
 					sysdebugTechSupport.DN = item.Dn
 					sysdebugTechSupport.Status = Status.DELETED
 					inConfig.AddChild(sysdebugTechSupport)
-					ccmi = self.ConfigConfMo(dn = item.Dn, inConfig = inConfig, inHierarchical=YesOrNo.FALSE, dumpXml=dumpXml)
+					ccmi = self.ConfigConfMo(dn=item.Dn, inConfig=inConfig, inHierarchical=YesOrNo.FALSE,
+											 dumpXml=dumpXml)
 					if (ccmi.errorCode != 0):
 						raise UcsException(ccmi.errorCode, ccmi.errorDescr)
-						#raise Exception('[Error]: GetTechSupport [Code]:' + ccmi.errorCode + ' [Description]:' + ccmi.errorDescr)
-		
+						# raise Exception('[Error]: GetTechSupport [Code]:' + ccmi.errorCode + ' [Description]:' + ccmi.errorDescr)
+
 		else:
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-			#raise Exception('[Error]: GetTechSupport [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
-		
+		# raise Exception('[Error]: GetTechSupport [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+
 		return crd.OutConfig.GetChild()
 
 	def SyncManagedObject(self, difference, deleteNotPresent=False, noVersionFilter=False, dumpXml=None):
@@ -1516,17 +1570,18 @@ class UcsHandle:
 		- deleteNotPresent, if set as True, any missing MOs in reference Managed Object set will be deleted.
 		- noVersionFilter, If set as True, minversion for Mos or properties to be added in reference Managed Object will not be checked.
 		"""
-		from UcsBase import WriteUcsWarning, WriteObject, UcsUtils, ManagedObject, AbstractFilter, GenericMO, SyncAction, UcsException, UcsValidationException
+		from UcsBase import WriteUcsWarning, WriteObject, UcsUtils, ManagedObject, AbstractFilter, GenericMO, \
+			SyncAction, UcsException, UcsValidationException
 		from Ucs import ClassFactory, Pair, ConfigMap
-		
+
 		if ((difference == None) or (isinstance(difference, list) and (len(difference) == 0))):
 			raise UcsValidationException("difference object parameter is not provided.")
-			#raise Exception("[Error]: SyncManagedObject: Difference Object can not be Null")
+		# raise Exception("[Error]: SyncManagedObject: Difference Object can not be Null")
 
 		configMap = ConfigMap()
 
 		configDoc = xml.dom.minidom.parse(UcsUtils.GetSyncMoConfigFilePath())
-		
+
 		moConfigMap = {}
 		moConfigMap = UcsUtils.GetSyncMoConfig(configDoc)
 
@@ -1536,28 +1591,30 @@ class UcsHandle:
 			gMoDiff = None
 			metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 			if metaClassId == None:
-				#TODO: Add Warning/Error messages in Logger.
-				WriteUcsWarning("Ignoring [%s]. Unknown ClassId [%s]." %(moDiff.InputObject.getattr("Dn"), classId))
+				# TODO: Add Warning/Error messages in Logger.
+				WriteUcsWarning("Ignoring [%s]. Unknown ClassId [%s]." % (moDiff.InputObject.getattr("Dn"), classId))
 				continue
-			
+
 			moConfigs = []
 			moConfig = None
-			
+
 			if UcsUtils.WordL(classId) in moConfigMap:
 				moConfigs = moConfigMap[UcsUtils.WordL(classId)]
-						
+
 			if moConfigs:
 				for conf in moConfigs:
 					if (self._version.CompareTo(conf.getActionVersion()) == 0):
-						moConfig=conf
-			
-			#Removes Difference Object.
+						moConfig = conf
+
+			# Removes Difference Object.
 			if ((moDiff.SideIndicator == UcsMoDiff.REMOVE) and (deleteNotPresent)):
-				
-				if (moConfig is not None and moConfig.getAction() == SyncAction.ignore and moConfig.getStatus() is not None and moConfig.getStatus().contains(Status.DELETED)):
+
+				if (
+										moConfig is not None and moConfig.getAction() == SyncAction.ignore and moConfig.getStatus() is not None and moConfig.getStatus().contains(
+							Status.DELETED)):
 					if (moConfig.getIgnoreReason() is None or len(moConfig.getIgnoreReason()) == 0):
 						continue
-				
+
 					ir = moConfig.getIgnoreReason()
 					try:
 						for prop in ir:
@@ -1566,32 +1623,34 @@ class UcsHandle:
 								attrValue = mo.getattr(prop)
 							else:
 								attrValue = None
-							
+
 							if (not propValue or not attrValue or propValue != attrValue):
 								ignore = False
 								break
 					except Exception, err:
 						ignore = False
-					
+
 					if ignore:
 						continue
-				
+
 				gMoDiff = ManagedObject(classId)
 				gMoDiff.setattr("Dn", mo.getattr("Dn"))
 				gMoDiff.setattr("Status", Status().DELETED)
-				gMoDiff = GenericMO(gMoDiff, WriteXmlOption.AllConfig)#gMoDiff should be generic object
+				gMoDiff = GenericMO(gMoDiff, WriteXmlOption.AllConfig)  # gMoDiff should be generic object
 
 			if moDiff.SideIndicator == UcsMoDiff.ADD_MODIFY:
 				gMoDiff = ManagedObject(classId)
 				addExists = False
 				moMeta = UcsUtils.IsPropertyInMetaIgnoreCase(classId, "Meta")
 
-				if((moMeta != None) and ('Add' in moMeta.verbs)):
+				if ((moMeta != None) and ('Add' in moMeta.verbs)):
 					addExists = True
 
-				#Add Difference Object.
+				# Add Difference Object.
 				if ((addExists) and ((moDiff.DiffProperty == None) or (len(moDiff.DiffProperty) == 0))):
-					if (moConfig is not None and moConfig.getAction() == SyncAction.ignore and moConfig.getStatus() is not None and moConfig.getStatus().contains(Status.CREATED)):
+					if (
+											moConfig is not None and moConfig.getAction() == SyncAction.ignore and moConfig.getStatus() is not None and moConfig.getStatus().contains(
+								Status.CREATED)):
 						if (moConfig.getIgnoreReason() is None or len(moConfig.getIgnoreReason()) == 0):
 							continue
 						ir = moConfig.getIgnoreReason()
@@ -1602,29 +1661,30 @@ class UcsHandle:
 									attrValue = mo.getattr(prop)
 								else:
 									attrValue = None
-								
+
 								if (not propValue or not attrValue or propValue != attrValue):
 									ignore = False
 									break
 						except Exception, err:
 							ignore = False
-						
+
 						if ignore:
 							continue
-				
-					for prop in mo.__dict__.keys():
+
+					for prop in mo.__dict__:
 						propMoMeta = UcsUtils.IsPropertyInMetaIgnoreCase(classId, prop)
 						if (propMoMeta != None):
-							if (prop.lower() == "rn" or prop.lower() == "dn" or propMoMeta.access == UcsPropertyMeta.ReadOnly):
+							if (
+												prop.lower() == "rn" or prop.lower() == "dn" or propMoMeta.access == UcsPropertyMeta.ReadOnly):
 								continue
 							exclude = False
-							if (moConfig is not None  and moConfig.getExcludeList() is not None):
+							if (moConfig is not None and moConfig.getExcludeList() is not None):
 								for exProp in moConfig.getExcludeList():
 									if prop.lower() == exProp.lower():
 										exclude = True
 							if not exclude:
 								gMoDiff.setattr(propMoMeta.name, mo.getattr(prop))
-					
+
 					gMoDiff.setattr("Dn", mo.getattr("Dn"))
 
 					if (moConfig is not None and moConfig.getAction() == SyncAction.statusChange):
@@ -1632,19 +1692,21 @@ class UcsHandle:
 					else:
 						gMoDiff.setattr("Status", Status().CREATED)
 
-					gMoDiff = GenericMO(gMoDiff, WriteXmlOption.AllConfig)#gMoDiff should be generic object
+					gMoDiff = GenericMO(gMoDiff, WriteXmlOption.AllConfig)  # gMoDiff should be generic object
 					if (not noVersionFilter):
 						hReference = mo.GetHandle()
 						if ((hReference != None) and (hReference._version != None)):
 							gMoDiff.FilterVersion(hReference._version)
 
-				#Modify the Managed Object
+				# Modify the Managed Object
 				else:
-					
-					if (moConfig is not None and moConfig.getAction() == SyncAction.ignore and moConfig.getStatus() is not None and moConfig.getStatus().contains(Status.DELETED)):
+
+					if (
+											moConfig is not None and moConfig.getAction() == SyncAction.ignore and moConfig.getStatus() is not None and moConfig.getStatus().contains(
+								Status.DELETED)):
 						if (moConfig.getIgnoreReason() is None or len(moConfig.getIgnoreReason()) == 0):
 							continue
-					
+
 						ir = moConfig.getIgnoreReason()
 						try:
 							for prop in ir:
@@ -1653,19 +1715,19 @@ class UcsHandle:
 									attrValue = mo.getattr(prop)
 								else:
 									attrValue = None
-								
+
 								if (not propValue or not attrValue or propValue != attrValue):
 									ignore = False
 									break
 						except Exception, err:
 							ignore = False
-						
+
 						if ignore:
 							continue
-					
+
 					if ((moDiff.DiffProperty == None) or (len(moDiff.DiffProperty) == 0)):
-						#TODO: Add Warning/Error messages in Logger.
-						WriteUcsWarning('Add not supported for classId ' + classId +'. Reverting to modify.')
+						# TODO: Add Warning/Error messages in Logger.
+						WriteUcsWarning('Add not supported for classId ' + classId + '. Reverting to modify.')
 						continue
 
 					finalDiffPropStr = None
@@ -1676,40 +1738,43 @@ class UcsHandle:
 						if (moConfig is not None and moConfig.getExcludeList() is not None):
 							for exProp in moConfig.getExcludeList():
 								if diffprop.lower() == exProp.lower():
-										exclude = True
+									exclude = True
 						if not exclude:
 							finalDiffPropStr = finalDiffPropStr + ","
-								
+
 					for prop in finalDiffProps:
 						propMoMeta = UcsUtils.IsPropertyInMetaIgnoreCase(classId, prop)
 						if (propMoMeta != None):
-							if (prop.lower() == "rn" or prop.lower() == "dn" or propMoMeta.access == UcsPropertyMeta.ReadOnly):
+							if (
+												prop.lower() == "rn" or prop.lower() == "dn" or propMoMeta.access == UcsPropertyMeta.ReadOnly):
 								continue
 							exclude = False
 							if (moConfig is not None and moConfig.getExcludeList() is not None):
 								for exProp in moConfig.getExcludeList():
 									if diffprop.lower() == exProp.lower():
-											exclude = True
+										exclude = True
 							if not exclude:
 								gMoDiff.setattr(propMoMeta.name, mo.getattr(prop))
 
 					gMoDiff.setattr("Dn", mo.getattr("Dn"))
 					gMoDiff.setattr("Status", Status().MODIFIED)
-					
-					gMoDiff = GenericMO(gMoDiff, WriteXmlOption.AllConfig)#gMoDiff should be generic object to apply FilterVersion on it.
-					
-			#TODO: NoversionFilter functionality discussion.
+
+					gMoDiff = GenericMO(gMoDiff,
+										WriteXmlOption.AllConfig)  # gMoDiff should be generic object to apply FilterVersion on it.
+
+			# TODO: NoversionFilter functionality discussion.
 			if ((gMoDiff != None) and (not noVersionFilter)):
 				gMoMeta = UcsUtils.GetUcsPropertyMeta(gMoDiff.classId, "Meta")
 				if ((gMoMeta != None) and (self._version != None)):
 					if self._version < gMoMeta.version:
-						#TODO: Add Warning/Error messages in Logger.
-						WriteUcsWarning('Ignoring unsupported classId %s for Dn %s.'  %(gMoDiff.classId, gMoDiff.getattr("Dn")))
+						# TODO: Add Warning/Error messages in Logger.
+						WriteUcsWarning(
+							'Ignoring unsupported classId %s for Dn %s.' % (gMoDiff.classId, gMoDiff.getattr("Dn")))
 						gMoDiff = None
 
 					if ((gMoDiff != None) and (self._version != None)):
 						gMoDiff.FilterVersion(self._version)
-				
+
 			if (gMoDiff != None):
 				if gMoDiff.__dict__.has_key("_excludePropList"):
 					for prop in gMoDiff.__dict__["_excludePropList"]:
@@ -1736,11 +1801,38 @@ class UcsHandle:
 						moList.append(mo)
 				elif (isinstance(child, ManagedObject) == True):
 					moList.append(child)
-			#WriteObject(moList)
+			# WriteObject(moList)
 			return moList
 		else:
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-			#raise Exception('[Error]: SyncManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+			# raise Exception('[Error]: SyncManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+
+	def GetUcsChild(self, inMo=None, inDn=None, classId=None, inHierarchical=False, dumpXml=None):
+		"""
+		Gets Child Managed Object from UCS.
+
+		- in_mo, if provided, it acts as a parent for the present operation. (required if in_dn is None).
+		- in_dn, parent mo dn (required if in_mo is None)
+		- class_id of the managed object/s to get.(optional)
+		- in_hierarchical, Explores hierarchy if true, else returns managed objects at a single level.(optional)
+		"""
+
+		from UcsBase import UcsValidationException, UcsException, UcsUtils
+
+		if not inDn and not inMo:
+			raise UcsValidationException('[Error]: get_ucs_child: Provide in_mo or in_dn.')
+
+		if inMo:
+			parentDn = inMo.getattr("Dn")
+		elif inDn:
+			parentDn = inDn
+
+		crc = self.ConfigResolveChildren(classId, parentDn, None, inHierarchical, dumpXml)
+		if crc.errorCode == 0:
+			moList = UcsUtils.extractMolistFromMethodResponse(crc, inHierarchical)
+			return moList
+		else:
+			raise UcsException(crc.errorCode, crc.error_descr)
 
 	def GetManagedObject(self, inMo=None, classId=None, params=None, inHierarchical=False, dumpXml=None):
 		"""
@@ -1753,9 +1845,10 @@ class UcsHandle:
 		  objects. The key should be a valid property of the managed object to be retrieved.
 		- inHierarchical, Explores hierarchy if true, else returns managed objects at a single level.
 		"""
-		from Ucs import ClassFactory,Dn,DnSet,OrFilter,EqFilter,AndFilter,WcardFilter,FilterFilter
+		from Ucs import ClassFactory, Dn, DnSet, OrFilter, EqFilter, AndFilter, WcardFilter, FilterFilter
 		from Mos import LsServer
-		from UcsBase import WriteUcsWarning,WriteObject,UcsUtils,ManagedObject,AbstractFilter,UcsException,UcsValidationException
+		from UcsBase import WriteUcsWarning, WriteObject, UcsUtils, ManagedObject, AbstractFilter, UcsException, \
+			UcsValidationException
 
 		if params != None:
 			keys = params.keys()
@@ -1763,26 +1856,28 @@ class UcsHandle:
 			keys = []
 
 		if (classId != None and classId != ""):
-			#ClassId param set
+			# ClassId param set
 			metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 			if (metaClassId == None):
 				metaClassId = classId
-				moMeta = UcsMoMeta(UcsUtils.WordU(classId), UcsUtils.WordL(classId), "", "", "InputOutput", ManagedObject.DUMMYDIRTY, [], [], [], [])
+				moMeta = UcsMoMeta(UcsUtils.WordU(classId), UcsUtils.WordL(classId), "", "", "InputOutput",
+								   ManagedObject.DUMMYDIRTY, [], [], [], [])
 			else:
 				moMeta = UcsUtils.GetUcsPropertyMeta(metaClassId, "Meta")
 
 			if moMeta == None:
-				raise UcsValidationException('[Error]: GetManagedObject: moMeta for classId [%s] is not valid' %(classId))
-				#raise Exception('[Error]: GetManagedObject: moMeta for classId [%s] is not valid' %(classId))
+				raise UcsValidationException(
+					'[Error]: GetManagedObject: moMeta for classId [%s] is not valid' % (classId))
+			# raise Exception('[Error]: GetManagedObject: moMeta for classId [%s] is not valid' %(classId))
 
-			#process the filter argument and make filterfilter
+			# process the filter argument and make filterfilter
 			orFilter = OrFilter()
 
 			if ((inMo != None) and (isinstance(inMo, list)) and (len(inMo) > 0)):
 				for mo in inMo:
 					andFilter = AndFilter()
 					for key in keys:
-						propMoMeta = UcsUtils.IsPropertyInMetaIgnoreCase(metaClassId,key)
+						propMoMeta = UcsUtils.IsPropertyInMetaIgnoreCase(metaClassId, key)
 						if (propMoMeta != None):
 							attrName = propMoMeta.xmlAttribute
 						else:
@@ -1802,7 +1897,7 @@ class UcsHandle:
 					wcardFilter = WcardFilter()
 					wcardFilter.Class = UcsUtils.WordL(metaClassId)
 					wcardFilter.Property = UcsUtils.WordL(NamingId.DN)
-					wcardFilter.Value = "^" + re.escape(lkupDn) +"/[^/]+$"
+					wcardFilter.Value = "^" + re.escape(lkupDn) + "/[^/]+$"
 					andFilter.AddChild(wcardFilter)
 
 					if (andFilter.GetChildCount() > 1):
@@ -1815,7 +1910,7 @@ class UcsHandle:
 			else:
 				andFilter = AndFilter()
 				for key in keys:
-					propMoMeta = UcsUtils.IsPropertyInMetaIgnoreCase(metaClassId,key)
+					propMoMeta = UcsUtils.IsPropertyInMetaIgnoreCase(metaClassId, key)
 					if (propMoMeta != None):
 						attrName = propMoMeta.xmlAttribute
 					else:
@@ -1838,7 +1933,7 @@ class UcsHandle:
 			if (orFilter.GetChildCount() > 1):
 				inFilter = FilterFilter()
 				inFilter.AddChild(UcsUtils.HandleFilterMaxComponentLimit(self, orFilter))
-			elif  (orFilter.GetChildCount() == 1):
+			elif (orFilter.GetChildCount() == 1):
 				inFilter = FilterFilter()
 				for filter in orFilter.GetChild():
 					if (isinstance(filter, AbstractFilter) == True):
@@ -1866,14 +1961,14 @@ class UcsHandle:
 								break
 					currentMoList = childMoList
 
-				#WriteObject(moList)
+				# WriteObject(moList)
 				return moList
 			else:
 				raise UcsException(crc.errorCode, crc.errorDescr)
-				#raise Exception('[Error]: GetManagedObject [Code]:' + crc.errorCode + ' [Description]:' + crc.errorDescr)
-			#return None
+				# raise Exception('[Error]: GetManagedObject [Code]:' + crc.errorCode + ' [Description]:' + crc.errorDescr)
+				# return None
 		else:
-			#Dn param set
+			# Dn param set
 			dnSet = DnSet()
 			dn = Dn()
 			for key in keys:
@@ -1882,7 +1977,7 @@ class UcsHandle:
 
 			if (dn.getattr("Value") == None or dn.getattr("Value") == ""):
 				raise UcsValidationException("classId or dn parameter is not provided.")
-				#raise Exception('[Warning]: GetManagedObject: ClassId or DN is mandatory')
+			# raise Exception('[Warning]: GetManagedObject: ClassId or DN is mandatory')
 
 			dnSet.AddChild(dn)
 			crDns = self.ConfigResolveDns(dnSet, inHierarchical, dumpXml)
@@ -1909,13 +2004,12 @@ class UcsHandle:
 						currentMoList = childMoList
 				else:
 					moList = crDns.OutConfigs.GetChild()
-				sortedMoList = sorted(moList, lambda x,y: cmp(x.Dn, y.Dn))
-				#WriteObject(moList)
+				sortedMoList = sorted(moList, lambda x, y: cmp(x.Dn, y.Dn))
+				# WriteObject(moList)
 				return sortedMoList
 			else:
 				raise UcsException(crDns.errorCode, crDns.errorDescr)
-				#raise Exception('[Error]: GetManagedObject [Code]:' + crDns.errorCode + ' [Description]:' + crDns.errorDescr)
-	
+			# raise Exception('[Error]: GetManagedObject [Code]:' + crDns.errorCode + ' [Description]:' + crDns.errorDescr)
 
 	def AddManagedObject(self, inMo=None, classId=None, params=None, modifyPresent=False, dumpXml=None):
 		"""
@@ -1928,14 +2022,14 @@ class UcsHandle:
 		  objects. The key should be a valid property of the managed object to be added.
 		- modifyPresent ensures that the add API modify the managed object, if it already exits, instead of returning an error.
 		"""
-		from UcsBase import UcsUtils,ManagedObject,WriteUcsWarning,WriteObject,UcsException,UcsValidationException
-		from Ucs import ClassFactory,Pair,ConfigMap
+		from UcsBase import UcsUtils, ManagedObject, WriteUcsWarning, WriteObject, UcsException, UcsValidationException
+		from Ucs import ClassFactory, Pair, ConfigMap
 
 		unknownMo = False
 		if (classId == None or classId == ""):
 			raise UcsValidationException("classId parameter is not provided.")
-			#raise Exception('[Error]: AddManagedObject [Description]: classId is Null')
-		
+		# raise Exception('[Error]: AddManagedObject [Description]: classId is Null')
+
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId != None):
 			classId = metaClassId
@@ -1946,7 +2040,7 @@ class UcsHandle:
 		configMap = ConfigMap()
 		rn = None
 		dn = None
-		#moMeta = UcsUtils.GetUcsPropertyMeta(classId, "Meta")
+		# moMeta = UcsUtils.GetUcsPropertyMeta(classId, "Meta")
 		if params != None:
 			keys = params.keys()
 		else:
@@ -1961,14 +2055,16 @@ class UcsHandle:
 				namingPropFound = False
 				for k in keys:
 					if (k.lower() == prop.lower()):
-						rn = re.sub('\[%s\]' % prop,'%s' % params[k], rn)
+						rn = re.sub('\[%s\]' % prop, '%s' % params[k], rn)
 						namingPropFound = True
 						break
 
 				if (namingPropFound == False):
-					#TODO: Add Warning/Error messages in Logger.
-					WriteUcsWarning("[Warning]: AddManagedObject [Description]:Expected Naming Property %s for ClassId %s not found" %(prop, classId))
-					rn = re.sub('\[%s\]' % prop,'%s' % "", rn)
+					# TODO: Add Warning/Error messages in Logger.
+					WriteUcsWarning(
+						"[Warning]: AddManagedObject [Description]:Expected Naming Property %s for ClassId %s not found" % (
+							prop, classId))
+					rn = re.sub('\[%s\]' % prop, '%s' % "", rn)
 
 		obj = ManagedObject(classId)
 
@@ -1979,46 +2075,52 @@ class UcsHandle:
 					if (prop.lower() == "rn" or prop.lower() == "dn"):
 						pass
 					elif (propMoMeta.access == UcsPropertyMeta.ReadOnly):
-						#TODO: Add Warning/Error messages in Logger.
-						WriteUcsWarning("[Warning]: AddManagedObject [Description]:Attempt to add non-writeable property %s in Class %s" %(prop, classId))
+						# TODO: Add Warning/Error messages in Logger.
+						WriteUcsWarning(
+							"[Warning]: AddManagedObject [Description]:Attempt to add non-writeable property %s in Class %s" % (
+								prop, classId))
 
 					if (prop.lower() == "rn"):
 						if ((inMo == None) or (not isinstance(inMo, list)) or (len(inMo) == 0)):
-							#TODO: Add Warning/Error messages in Logger.
-							WriteUcsWarning("[Warning]: AddManagedObject [Description]:Ignoring Rn since no parent provided")
+							# TODO: Add Warning/Error messages in Logger.
+							WriteUcsWarning(
+								"[Warning]: AddManagedObject [Description]:Ignoring Rn since no parent provided")
 						if (rn != params[prop]):
-							#TODO: Add Warning/Error messages in Logger.
-							WriteUcsWarning("[Warning]: AddManagedObject [Description]:Rn Mismatch. Provided %s Computed %s. Ignoring Computed Rn" %(params[prop], rn))
-							rn = params[prop]#bug fix. if Rn and Name are both provided by user then Rn will get preference.
+							# TODO: Add Warning/Error messages in Logger.
+							WriteUcsWarning(
+								"[Warning]: AddManagedObject [Description]:Rn Mismatch. Provided %s Computed %s. Ignoring Computed Rn" % (
+									params[prop], rn))
+							rn = params[
+								prop]  # bug fix. if Rn and Name are both provided by user then Rn will get preference.
 
 					if (prop.lower() == "dn"):
 						dn = params[prop]
 
 					obj.setattr(propMoMeta.name, str(params[prop]))
 				else:
-					#Known MO - Unknown Property
+					# Known MO - Unknown Property
 					obj.setattr(UcsUtils.WordL(prop), str(params[prop]))
 			else:
-				#Unknown MO
+				# Unknown MO
 				if (prop.lower() == "dn"):
 					dn = params[prop]
 
 				if prop.lower() == "rn":
 					rn = params[prop]
-				if rn==None:
-					rn=""
+				if rn == None:
+					rn = ""
 
 				obj.setattr(UcsUtils.WordL(prop), str(params[prop]))
 
 		if modifyPresent in _AffirmativeList:
-			obj.setattr("Status", '%s,%s' %(Status().CREATED,Status().MODIFIED))
+			obj.setattr("Status", '%s,%s' % (Status().CREATED, Status().MODIFIED))
 		else:
 			obj.setattr("Status", Status().CREATED)
 
 		if (dn != None and dn != ""):
 			obj.setattr("Dn", dn)
 			pair = Pair()
-			#pair.setattr("Key", obj.Dn)
+			# pair.setattr("Key", obj.Dn)
 			pair.setattr("Key", obj.getattr("Dn"))
 			pair.AddChild(obj)
 			configMap.AddChild(pair)
@@ -2026,16 +2128,16 @@ class UcsHandle:
 			for mo in inMo:
 				pdn = mo.getattr("Dn")
 				if pdn != None:
-					obj.setattr("Dn", pdn + '/' +rn)
+					obj.setattr("Dn", pdn + '/' + rn)
 					pair = Pair()
-					#pair.setattr("Key", obj.Dn)
+					# pair.setattr("Key", obj.Dn)
 					pair.setattr("Key", obj.getattr("Dn"))
 					pair.AddChild(obj.Clone())
 					configMap.AddChild(pair)
 
 		if configMap.GetChildCount() == 0:
 			raise UcsValidationException('[Warning]: AddManagedObject [Description]: Nothing to Add')
-			#raise Exception('[Warning]: AddManagedObject [Description]: Nothing to Add')
+		# raise Exception('[Warning]: AddManagedObject [Description]: Nothing to Add')
 
 		ccm = self.ConfigConfMos(configMap, False, dumpXml)
 		if ccm.errorCode == 0:
@@ -2046,12 +2148,12 @@ class UcsHandle:
 						moList.append(mo)
 				elif (isinstance(child, ManagedObject) == True):
 					moList.append(child)
-			#WriteObject(moList)
+			# WriteObject(moList)
 			return moList
 		else:
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-			#raise Exception('[Error]: AddManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
-	
+		# raise Exception('[Error]: AddManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
+
 	def SetManagedObject(self, inMo, classId=None, params=None, dumpXml=None):
 		"""
 		Modifies Managed Object in UCS.
@@ -2062,9 +2164,9 @@ class UcsHandle:
 		- params contains semicolon (;) separated list of key/value pairs(key=value), that are used as filters for selecting specific managed 
 		  objects. The key should be a valid property of the managed object to be modified.
 		"""
-		from UcsBase import UcsUtils,ManagedObject,WriteUcsWarning,WriteObject,UcsException,UcsValidationException
-		from Ucs import ClassFactory,Pair,ConfigMap
-		
+		from UcsBase import UcsUtils, ManagedObject, WriteUcsWarning, WriteObject, UcsException, UcsValidationException
+		from Ucs import ClassFactory, Pair, ConfigMap
+
 		if params != None:
 			keys = params.keys()
 		else:
@@ -2096,12 +2198,14 @@ class UcsHandle:
 							if (prop.lower() == "rn" or prop.lower() == "dn"):
 								pass
 							elif (propMoMeta.access == UcsPropertyMeta.ReadOnly):
-								#TODO: Add Warning/Error messages in Logger.
-								WriteUcsWarning("[Warning]: SetManagedObject [Description] Attempt to set non-writable property %s in Class %s" %(prop, classId))
+								# TODO: Add Warning/Error messages in Logger.
+								WriteUcsWarning(
+									"[Warning]: SetManagedObject [Description] Attempt to set non-writable property %s in Class %s" % (
+										prop, classId))
 
 							obj.setattr(propMoMeta.name, str(params[prop]))
 						else:
-							#Sets the unknown property/value as XtraProperty in obj
+							# Sets the unknown property/value as XtraProperty in obj
 							obj.setattr(UcsUtils.WordL(prop), str(params[prop]))
 
 					obj.setattr("Dn", dn)
@@ -2116,11 +2220,13 @@ class UcsHandle:
 			# ClassId is None, inMo Necessary
 			if ((inMo == None) or (not isinstance(inMo, list)) or (len(inMo) == 0)):
 				if (classId == None or classId == ""):
-					raise UcsValidationException('[Error]: SetManagedObject [Description]: inMo and ClassId are both not specified')
-					#raise Exception('[Error]: SetManagedObject [Description]: inMo and ClassId are both not specified')
+					raise UcsValidationException(
+						'[Error]: SetManagedObject [Description]: inMo and ClassId are both not specified')
+				# raise Exception('[Error]: SetManagedObject [Description]: inMo and ClassId are both not specified')
 				else:
-					raise UcsValidationException('[Error]: SetManagedObject [Description]: inMo and Dn are both not specified')
-					#raise Exception('[Error]: SetManagedObject [Description]: inMo and Dn are both not specified')
+					raise UcsValidationException(
+						'[Error]: SetManagedObject [Description]: inMo and Dn are both not specified')
+					# raise Exception('[Error]: SetManagedObject [Description]: inMo and Dn are both not specified')
 
 			configMap = ConfigMap()
 			for mo in inMo:
@@ -2129,9 +2235,11 @@ class UcsHandle:
 
 				if (classId == None or classId == ""):
 					classId = mo.propMoMeta.name
-				elif (classId.lower() != (mo.propMoMeta.name).lower()):#check that classId(just in case classId have value) and parentMo's classId is equal.
-					#TODO: Add Warning/Error messages in Logger.
-					WriteUcsWarning("[Warning]: SetManagedObject [Description] ClassId does not match with inMo's classId.")
+				elif (classId.lower() != (
+						mo.propMoMeta.name).lower()):  # check that classId(just in case classId have value) and parentMo's classId is equal.
+					# TODO: Add Warning/Error messages in Logger.
+					WriteUcsWarning(
+						"[Warning]: SetManagedObject [Description] ClassId does not match with inMo's classId.")
 					classId = mo.propMoMeta.name
 
 				for prop in keys:
@@ -2140,12 +2248,14 @@ class UcsHandle:
 						if (prop.lower() == "rn" or prop.lower() == "dn"):
 							pass
 						elif (propMoMeta.access == UcsPropertyMeta.ReadOnly):
-							#TODO: Add Warning/Error messages in Logger.
-							WriteUcsWarning("[Warning]: SetManagedObject [Description] Attempt to set non-writeable property %s in Class %s" %(prop, classId))
+							# TODO: Add Warning/Error messages in Logger.
+							WriteUcsWarning(
+								"[Warning]: SetManagedObject [Description] Attempt to set non-writeable property %s in Class %s" % (
+									prop, classId))
 
 						obj.setattr(propMoMeta.name, str(params[prop]))
 					else:
-						#Sets the unknown property/value as XtraProperty in obj
+						# Sets the unknown property/value as XtraProperty in obj
 						obj.setattr(UcsUtils.WordL(prop), str(params[prop]))
 
 				obj.setattr("Dn", dn)
@@ -2165,12 +2275,11 @@ class UcsHandle:
 							moList.append(mo)
 					elif (isinstance(child, ManagedObject) == True):
 						moList.append(child)
-				#WriteObject(moList)
+				# WriteObject(moList)
 				return moList
 			else:
 				raise UcsException(ccm.errorCode, ccm.errorDescr)
-				#raise Exception('[Error]: SetManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
-	
+			# raise Exception('[Error]: SetManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
 
 	def RemoveManagedObject(self, inMo=None, classId=None, params=None, dumpXml=None):
 		"""
@@ -2182,8 +2291,8 @@ class UcsHandle:
 		- params contains semicolon (;) separated list of key/value pairs(key=value), that are used as filters for selecting specific managed 
 		  objects. The key should be a valid property of the managed object to be modified.
 		"""
-		from UcsBase import UcsUtils,ManagedObject,WriteUcsWarning,WriteObject,UcsException,UcsValidationException
-		from Ucs import ClassFactory,Pair,ConfigMap
+		from UcsBase import UcsUtils, ManagedObject, WriteUcsWarning, WriteObject, UcsException, UcsValidationException
+		from Ucs import ClassFactory, Pair, ConfigMap
 
 		if params != None:
 			keys = params.keys()
@@ -2194,9 +2303,9 @@ class UcsHandle:
 		if ((inMo != None) and (isinstance(inMo, list)) and (len(inMo) > 0)):
 			for mo in inMo:
 				pair = Pair()
-				pair.setattr("Key",mo.getattr("Dn"))
+				pair.setattr("Key", mo.getattr("Dn"))
 				obj = ManagedObject(mo.classId)
-				obj.setattr("Status",Status().DELETED)
+				obj.setattr("Status", Status().DELETED)
 				pair.AddChild(obj)
 
 				configMap.AddChild(pair)
@@ -2211,16 +2320,17 @@ class UcsHandle:
 					pair.setattr("Key", params[prop])
 			if (pair.getattr("Key") == None):
 				raise UcsValidationException('[Error]: RemoveManagedObject [Description]: Dn missing in propertyMap')
-				#raise Exception('[Error]: RemoveManagedObject [Description]: Dn missing in propertyMap')
-			
+			# raise Exception('[Error]: RemoveManagedObject [Description]: Dn missing in propertyMap')
+
 			obj = ManagedObject(classId)
 			obj.setattr("Status", Status().DELETED)
 			pair.AddChild(obj)
 			configMap.AddChild(pair)
 
 		if configMap.GetChildCount() == 0:
-			raise UcsValidationException('[Warning]: RemoveManagedObject [Description]: (inMO) or (ClassId and Dn) missing')
-			#raise Exception('[Warning]: RemoveManagedObject [Description]: (inMO) or (ClassId and Dn) missing')
+			raise UcsValidationException(
+				'[Warning]: RemoveManagedObject [Description]: (inMO) or (ClassId and Dn) missing')
+		# raise Exception('[Warning]: RemoveManagedObject [Description]: (inMO) or (ClassId and Dn) missing')
 
 		ccm = self.ConfigConfMos(configMap, False, dumpXml)
 		if ccm.errorCode == 0:
@@ -2231,12 +2341,11 @@ class UcsHandle:
 						moList.append(mo)
 				elif (isinstance(child, ManagedObject) == True):
 					moList.append(child)
-			#WriteObject(moList)
+			# WriteObject(moList)
 			return moList
 		else:
 			raise UcsException(ccm.errorCode, ccm.errorDescr)
-			#raise Exception('[Error]: RemoveManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
-		
+		# raise Exception('[Error]: RemoveManagedObject [Code]:' + ccm.errorCode + ' [Description]:' + ccm.errorDescr)
 
 	def AaaChangeSelfPassword(self, inConfirmNewPassword, inNewPassword, inOldPassword, inUserName, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
@@ -2527,6 +2636,22 @@ class UcsHandle:
 			return response
 		return None
 
+	def ApeGetNextId(self, inChassisId, inMoType, inServerInstanceId, inSlotId, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ApeGetNextId")
+
+		method.Cookie = self._cookie
+		method.InChassisId = str(inChassisId)
+		method.InMoType = str(inMoType)
+		method.InServerInstanceId = str(inServerInstanceId)
+		method.InSlotId = str(inSlotId)
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
 	def ApeGetPnuOSInventory(self, inFruModel, inFruSerial, inFruVendor, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ApeGetPnuOSInventory")
@@ -2535,6 +2660,19 @@ class UcsHandle:
 		method.InFruModel = inFruModel
 		method.InFruSerial = inFruSerial
 		method.InFruVendor = inFruVendor
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
+	def ApeGetServerFromIp(self, inIpAddr, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ApeGetServerFromIp")
+
+		method.Cookie = self._cookie
+		method.InIpAddr = inIpAddr
 
 		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
 
@@ -2621,12 +2759,26 @@ class UcsHandle:
 			return response
 		return None
 
-	def ApeIssueChassisId(self, inConfig, dumpXml=None):
+	def ApeIssueAdaptorId(self, inConfig, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ApeIssueAdaptorId")
+
+		method.Cookie = self._cookie
+		method.InConfig = inConfig
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
+	def ApeIssueChassisId(self, inConfig, inSwId, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ApeIssueChassisId")
 
 		method.Cookie = self._cookie
 		method.InConfig = inConfig
+		method.InSwId = inSwId
 
 		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
 
@@ -2673,12 +2825,13 @@ class UcsHandle:
 			return response
 		return None
 
-	def ApeMcGetBiosTokens(self, inChassisId, inSlotId, dumpXml=None):
+	def ApeMcGetBiosTokens(self, inChassisId, inInstanceId, inSlotId, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ApeMcGetBiosTokens")
 
 		method.Cookie = self._cookie
 		method.InChassisId = str(inChassisId)
+		method.InInstanceId = str(inInstanceId)
 		method.InSlotId = str(inSlotId)
 
 		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
@@ -2701,12 +2854,13 @@ class UcsHandle:
 			return response
 		return None
 
-	def ApeMcGetSmbios(self, inChassisId, inSlotId, inUpdateCnt, dumpXml=None):
+	def ApeMcGetSmbios(self, inChassisId, inIpAddr, inSlotId, inUpdateCnt, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ApeMcGetSmbios")
 
 		method.Cookie = self._cookie
 		method.InChassisId = str(inChassisId)
+		method.InIpAddr = inIpAddr
 		method.InSlotId = str(inSlotId)
 		method.InUpdateCnt = inUpdateCnt
 
@@ -2757,16 +2911,18 @@ class UcsHandle:
 			return response
 		return None
 
-	def ApeSetApeSensorReading(self, inChassisId, inFaultLevel, inOperation, inSensorName, inServerId, dumpXml=None):
+	def ApeSetApeSensorReading(self, inChassisId, inFaultLevel, inInstanceId, inOperation, inSensorName, inServerId, inSlotId, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ApeSetApeSensorReading")
 
 		method.Cookie = self._cookie
 		method.InChassisId = str(inChassisId)
 		method.InFaultLevel = str(inFaultLevel)
+		method.InInstanceId = str(inInstanceId)
 		method.InOperation = str(inOperation)
 		method.InSensorName = str(inSensorName)
 		method.InServerId = str(inServerId)
+		method.InSlotId = str(inSlotId)
 
 		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
 
@@ -2848,6 +3004,39 @@ class UcsHandle:
 			return response
 		return None
 
+	def ApeSetVmediaMounts(self, inChassisId, inCount, inServerInstanceId, inSlotId, inVMediaSet, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ApeSetVmediaMounts")
+
+		method.Cookie = self._cookie
+		method.InChassisId = str(inChassisId)
+		method.InCount = str(inCount)
+		method.InServerInstanceId = str(inServerInstanceId)
+		method.InSlotId = str(inSlotId)
+		method.InVMediaSet = inVMediaSet
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
+	def ApeTriggerSwInv(self, inModel, inSerial, inSwId, inVendor, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ApeTriggerSwInv")
+
+		method.Cookie = self._cookie
+		method.InModel = inModel
+		method.InSerial = inSerial
+		method.InSwId = inSwId
+		method.InVendor = inVendor
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
 	def ApeUpdateApeFirmwareParamTable(self, inFieldName, inIpAddr, inVersion, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ApeUpdateApeFirmwareParamTable")
@@ -2895,22 +3084,6 @@ class UcsHandle:
 
 		method.Cookie = self._cookie
 		method.InFaultsOnly = inFaultsOnly
-
-		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
-
-		if (response != None):
-			return response
-		return None
-
-	def ComputeSubscribe(self, inCategory, inPolicyMapSchema, inProvider, inSchemaInfo, dumpXml=None):
-		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
-		method = ExternalMethod("ComputeSubscribe")
-
-		method.Cookie = self._cookie
-		method.InCategory = inCategory
-		method.InPolicyMapSchema = inPolicyMapSchema
-		method.InProvider = inProvider
-		method.InSchemaInfo = inSchemaInfo
 
 		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
 
@@ -2968,8 +3141,6 @@ class UcsHandle:
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId != None):
 			classId = UcsUtils.WordL(metaClassId)
-		else:
-			classId = UcsUtils.WordL(classId)
 		method.ClassId = classId
 		method.Cookie = self._cookie
 		method.InConfig = inConfig
@@ -3041,6 +3212,20 @@ class UcsHandle:
 			return response
 		return None
 
+	def ConfigEstimateConfMos(self, inConfigs, inHierarchical=YesOrNo.FALSE, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ConfigEstimateConfMos")
+
+		method.Cookie = self._cookie
+		method.InConfigs = inConfigs
+		method.InHierarchical = (("false", "true")[inHierarchical in _AffirmativeList])
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
 	def ConfigEstimateImpact(self, inConfigs, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ConfigEstimateImpact")
@@ -3075,8 +3260,6 @@ class UcsHandle:
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId != None):
 			classId = UcsUtils.WordL(metaClassId)
-		else:
-			classId = UcsUtils.WordL(classId)
 		method.ClassId = classId
 		method.Cookie = self._cookie
 		method.InFilter = inFilter
@@ -3117,13 +3300,29 @@ class UcsHandle:
 			return response
 		return None
 
-	def ConfigGetEstimateImpact(self, inConfigs, inImpactAnalyzerId, inSourceConnectorId, dumpXml=None):
+	def ConfigFindStoragePackDependencies(self, dn, inStoragePackDns, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ConfigFindStoragePackDependencies")
+
+		method.Cookie = self._cookie
+		method.Dn = dn
+		method.InStoragePackDns = inStoragePackDns
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
+	def ConfigGetEstimateImpact(self, inConfigs, inDeletedDns, inImpactAnalyzerId, inIsPolicyFullConfig, inSourceConnectorId, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ConfigGetEstimateImpact")
 
 		method.Cookie = self._cookie
 		method.InConfigs = inConfigs
+		method.InDeletedDns = inDeletedDns
 		method.InImpactAnalyzerId = inImpactAnalyzerId
+		method.InIsPolicyFullConfig = inIsPolicyFullConfig
 		method.InSourceConnectorId = str(inSourceConnectorId)
 
 		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
@@ -3173,7 +3372,7 @@ class UcsHandle:
 			return response
 		return None
 
-	def ConfigInstallAllImpact(self, dn, inBladePackVersion, inHostPackDns, inInfraPackVersion, inRackPackVersion, dumpXml=None):
+	def ConfigInstallAllImpact(self, dn, inBladePackVersion, inHostPackDns, inInfraPackVersion, inMSeriesPackVersion, inRackPackVersion, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("ConfigInstallAllImpact")
 
@@ -3182,7 +3381,23 @@ class UcsHandle:
 		method.InBladePackVersion = inBladePackVersion
 		method.InHostPackDns = inHostPackDns
 		method.InInfraPackVersion = inInfraPackVersion
+		method.InMSeriesPackVersion = inMSeriesPackVersion
 		method.InRackPackVersion = inRackPackVersion
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
+	def ConfigInstallStorageAllImpact(self, dn, inStoragePackDns, inStoragePackVersion, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("ConfigInstallStorageAllImpact")
+
+		method.Cookie = self._cookie
+		method.Dn = dn
+		method.InStoragePackDns = inStoragePackDns
+		method.InStoragePackVersion = inStoragePackVersion
 
 		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
 
@@ -3252,8 +3467,6 @@ class UcsHandle:
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId != None):
 			classId = UcsUtils.WordL(metaClassId)
-		else:
-			classId = UcsUtils.WordL(classId)
 		method.ClassId = classId
 		method.Cookie = self._cookie
 		method.InDn = inDn
@@ -3273,8 +3486,6 @@ class UcsHandle:
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId != None):
 			classId = UcsUtils.WordL(metaClassId)
-		else:
-			classId = UcsUtils.WordL(classId)
 		method.ClassId = classId
 		method.Cookie = self._cookie
 		method.InDn = inDn
@@ -3295,8 +3506,6 @@ class UcsHandle:
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId != None):
 			classId = UcsUtils.WordL(metaClassId)
-		else:
-			classId = UcsUtils.WordL(classId)
 		method.ClassId = classId
 		method.Cookie = self._cookie
 		method.InFilter = inFilter
@@ -3315,8 +3524,6 @@ class UcsHandle:
 		metaClassId = UcsUtils.FindClassIdInMoMetaIgnoreCase(classId)
 		if (metaClassId != None):
 			classId = UcsUtils.WordL(metaClassId)
-		else:
-			classId = UcsUtils.WordL(classId)
 		method.ClassId = classId
 		method.Cookie = self._cookie
 		method.InFilter = inFilter
@@ -3693,6 +3900,19 @@ class UcsHandle:
 			return response
 		return None
 
+	def MethodResolveVessel(self, inStimuli, dumpXml=None):
+		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
+		method = ExternalMethod("MethodResolveVessel")
+
+		method.Cookie = self._cookie
+		method.InStimuli = inStimuli
+
+		response = self.XmlQuery(method, WriteXmlOption.Dirty, dumpXml)
+
+		if (response != None):
+			return response
+		return None
+
 	def MethodVessel(self, inStimuli, dumpXml=None):
 		from UcsBase import ExternalMethod,UcsUtils,WriteUcsWarning
 		method = ExternalMethod("MethodVessel")
@@ -3943,13 +4163,17 @@ class UcsHandle:
 		return None
 
 
+
 class UcsVersion:
 	"""	This class handles the operations related to the UcsVersions. It provides functionality to compare Ucs version objects. """
+
 	def __init__(self, version):
 		if (version == None):
 			return None
 
-		matchObj = re.match("""^(?P<major>[1-9][0-9]{0,2})\.(?P<minor>(([0-9])|([1-9][0-9]{0,1})))\((?P<mr>(([0-9])|([1-9][0-9]{0,2})))\.(?P<patch>(([0-9])|([1-9][0-9]{0,4})))\)$""",version,0)
+		matchObj = re.match(
+			"""^(?P<major>[1-9][0-9]{0,2})\.(?P<minor>(([0-9])|([1-9][0-9]{0,1})))\((?P<mr>(([0-9])|([1-9][0-9]{0,2})))\.(?P<patch>(([0-9])|([1-9][0-9]{0,4})))\)$""",
+			version, 0)
 		if matchObj:
 			self.major = matchObj.group("major")
 			self.minor = matchObj.group("minor")
@@ -3957,7 +4181,9 @@ class UcsVersion:
 			self.patch = matchObj.group("patch")
 			return
 
-		matchObj = re.match("""^(?P<major>[1-9][0-9]{0,2})\.(?P<minor>(([0-9])|([1-9][0-9]{0,1})))\((?P<mr>(([0-9])|([1-9][0-9]{0,2})))(?P<patch>[a-z])\)$""", version, 0)
+		matchObj = re.match(
+			"""^(?P<major>[1-9][0-9]{0,2})\.(?P<minor>(([0-9])|([1-9][0-9]{0,1})))\((?P<mr>(([0-9])|([1-9][0-9]{0,2})))(?P<patch>[a-z])\)$""",
+			version, 0)
 		if matchObj:
 			self.major = matchObj.group("major")
 			self.minor = matchObj.group("minor")
@@ -3965,7 +4191,9 @@ class UcsVersion:
 			self.patch = matchObj.group("patch")
 			return
 
-		matchObj = re.match("""^(?P<major>[1-9][0-9]{0,2})\.(?P<minor>(([0-9])|([1-9][0-9]{0,1})))\((?P<mr>(([0-9])|([1-9][0-9]{0,2})))\)$""",version,0)
+		matchObj = re.match(
+			"""^(?P<major>[1-9][0-9]{0,2})\.(?P<minor>(([0-9])|([1-9][0-9]{0,1})))\((?P<mr>(([0-9])|([1-9][0-9]{0,2})))\)$""",
+			version, 0)
 		if matchObj:
 			self.major = matchObj.group("major")
 			self.minor = matchObj.group("minor")
@@ -3973,7 +4201,7 @@ class UcsVersion:
 			return
 
 	def CompareTo(self, version):
-		if (version == None or not isinstance(version,UcsVersion)):
+		if (version == None or not isinstance(version, UcsVersion)):
 			return 1
 
 		if (self.major != version.major):
@@ -3984,21 +4212,22 @@ class UcsVersion:
 			return ord(self.mr) - ord(version.mr)
 		return ord(self.patch) - ord(version.patch)
 
-	def __gt__(self,version):
+	def __gt__(self, version):
 		return (self.CompareTo(version) > 0)
 
-	def __lt__(self,version):
+	def __lt__(self, version):
 		return (self.CompareTo(version) < 0)
 
-	def __ge__(self,version):
+	def __ge__(self, version):
 		return (self.CompareTo(version) >= 0)
 
-	def __le__(self,version):
+	def __le__(self, version):
 		return (self.CompareTo(version) <= 0)
-	
+
 
 class UcsPropertyRestriction:
 	""" This class handles the restriction information of the properties of managed object. """
+
 	def __init__(self, minLength=None, maxLength=None, pattern=None, valueSet=None, rangeVal=None):
 		self.minLength = minLength
 		self.maxLength = maxLength
@@ -4008,6 +4237,7 @@ class UcsPropertyRestriction:
 		self.rangeRoc = None
 		self.valueSetRoc = None
 
+
 class UcsPropertyMeta:
 	"""	This class handles the meta information of the properties of managed Object. """
 	Naming = 0
@@ -4016,7 +4246,8 @@ class UcsPropertyMeta:
 	ReadWrite = 3
 	Internal = 4
 
-	def __init__(self,name, xmlAttribute, fieldType, version, access, mask, minLength, maxLength, pattern, valueSet, rangeVal):
+	def __init__(self, name, xmlAttribute, fieldType, version, access, mask, minLength, maxLength, pattern, valueSet,
+				 rangeVal):
 		self.name = name
 		self.xmlAttribute = xmlAttribute
 		self.fieldType = fieldType
@@ -4025,14 +4256,8 @@ class UcsPropertyMeta:
 		self.mask = mask
 		self.restriction = UcsPropertyRestriction(minLength, maxLength, pattern, valueSet, rangeVal)
 
-	def ValidatePropertyValue(self,inputVal):
+	def ValidatePropertyValue(self, inputVal):
 		if (inputVal == None):
-			return False
-
-		if ((self.restriction.minLength != None) and (len(inputVal) < self.restriction.minLength)):
-			return False
-
-		if ((self.restriction.maxLength != None) and (len(inputVal) > self.restriction.maxLength)):
 			return False
 
 		if ((self.restriction.rangeVal != None) and (len(self.restriction.rangeVal) > 0)):
@@ -4051,15 +4276,23 @@ class UcsPropertyMeta:
 			for s in self.restriction.valueSet:
 				if (s == inputVal):
 					return True
+		if ((self.restriction.minLength != None) and (len(inputVal) < self.restriction.minLength)):
+			return False
+
+		if ((self.restriction.maxLength != None) and (len(inputVal) > self.restriction.maxLength)):
+			return False
 
 		if (self.restriction.pattern != None):
-			#match = re.match('"""' + self.restriction.pattern + '"""', inputVal, 0)
+			# match = re.match('"""' + self.restriction.pattern + '"""', inputVal, 0)
 			match = re.match(re.escape('"""' + self.restriction.pattern + '"""'), inputVal, 0)
 			if match:
 				return True
 
-		if (((self.restriction.rangeVal) != None and (len(self.restriction.rangeVal) > 0)) or ((self.restriction.valueSet != None) and (len(self.restriction.valueSet) > 0)) or (self.restriction.pattern != None)):
+		if (((self.restriction.rangeVal) != None and (len(self.restriction.rangeVal) > 0)) or (
+					(self.restriction.valueSet != None) and (len(self.restriction.valueSet) > 0)) or (
+					self.restriction.pattern != None)):
 			return True
+
 
 class UcsMoMeta:
 	"""	This class handles the meta information of the managed Object. """
@@ -4078,13 +4311,16 @@ class UcsMoMeta:
 		self.verbs = verbs
 		self.access = access
 
+
 class WriteXmlOption:
 	All = 0
 	AllConfig = 1
 	Dirty = 2
 
+
 class UcsFactoryMeta:
 	""" This class handles the meta information of the properties of external method Object. """
+
 	def __init__(self, name, xmlAttribute, fieldType, version, io, isComplexType):
 		self.name = name
 		self.xmlAttribute = xmlAttribute
@@ -4093,12 +4329,15 @@ class UcsFactoryMeta:
 		self.io = io
 		self.isComplexType = isComplexType
 
+
 class UcsFactoryMethodMeta:
 	""" This class handles the meta information of the meta property of external method Object. """
+
 	def __init__(self, name, xmlAttribute, version):
 		self.name = name
 		self.xmlAttribute = xmlAttribute
 		self.version = version
+
 
 class CompareStatus:
 	""" Internal class to support CompareUcsManagedObject functionality. """
@@ -4106,11 +4345,12 @@ class CompareStatus:
 	PropsDifferent = 1
 	Equal = 2
 
+
 class UcsMoDiff:
 	"""
-	This class structures an object which will be creatd by CompareManagedObject and contains all the information about the difference object which
-	will be used by the SyncManagedObject method.
-	"""
+    This class structures an object which will be creatd by CompareManagedObject and contains all the information about the difference object which
+    will be used by the SyncManagedObject method.
+    """
 	REMOVE = "<="
 	ADD_MODIFY = "=>"
 	EQUAL = "=="
@@ -4120,53 +4360,57 @@ class UcsMoDiff:
 		self.Dn = inputObject.Dn
 		self.SideIndicator = sideIndicator
 		self.DiffProperty = diffProperty
-		#if(refValues != None):
+		# if(refValues != None):
 		self.refPropValues = refValues
-		#if(diffValues != None):
+		# if(diffValues != None):
 		self.diffPropValues = diffValues
+
 
 class UcsMoChangeEvent:
 	"""
-	This class provides strcuture to save an event generated for any change, its associated managed object and property change list. This functionality is used 
-	during AddEventHandler.
-	"""
+    This class provides strcuture to save an event generated for any change, its associated managed object and property change list. This functionality is used
+    during AddEventHandler.
+    """
+
 	def __init__(self, eventId=None, mo=None, changeList=[]):
 		self.eventId = eventId
 		self.mo = mo
 		self.changeList = changeList
 
+
 class WatchBlock:
 	"""
-	This class handles the functionality about the Event Handling/Watch block. Enqueue/Dequeue fuctionality of events is handled by this class. This functionality is 
-	used during AddEventHandler.
-	"""
+    This class handles the functionality about the Event Handling/Watch block. Enqueue/Dequeue fuctionality of events is handled by this class. This functionality is
+    used during AddEventHandler.
+    """
+
 	def __init__(self, params, fmce, capacity, cb):
 		self.fmce = fmce
 		self.cb = cb
 		self.capacity = capacity
 		self.params = params
 		self.overflow = False
-		self.errorCode = 0#TODO: when set errorCode condition should call notify according to PowerTool
+		self.errorCode = 0  # TODO: when set errorCode condition should call notify according to PowerTool
 
-		self.changeEvents = Queue()#infinite size Queue
+		self.changeEvents = Queue()  # infinite size Queue
 		self.are = Condition()
 
 	def Dequeue(self, millisecondsTimeout):
 		while True:
-			#self.are.acquire()
+			# self.are.acquire()
 			if self.changeEvents.empty():
-				#startTime =	datetime.datetime.now()#measure time at this point
-				#self.are.wait(millisecondsTimeout)#codition will either timeout or receive signal
-				#ts = datetime.datetime.now() - startTime
-				#if (ts.seconds>=millisecondsTimeout):#TimeOut
+				# startTime =	datetime.datetime.now()#measure time at this point
+				# self.are.wait(millisecondsTimeout)#codition will either timeout or receive signal
+				# ts = datetime.datetime.now() - startTime
+				# if (ts.seconds>=millisecondsTimeout):#TimeOut
 				#	self.are.release()
 				#	return None
-				#if self.are.wait(millisecondsTimeout):
-					#self.are.release()
+				# if self.are.wait(millisecondsTimeout):
+				# self.are.release()
 				return None
 
 			if self.errorCode != 0:
-				#self.are.release()
+				# self.are.release()
 				return None
 
 			self.are.acquire()
@@ -4189,34 +4433,37 @@ class WatchBlock:
 	def _dequeue_default_cb(self, mce):
 		tabsize = 8
 		print "\n"
-		print 'EventId'.ljust(tabsize*2) + ':' + str(mce.eventId)
-		print 'ChangeList'.ljust(tabsize*2) + ':' + str(mce.changeList)
-		print 'ClassId'.ljust(tabsize*2) + ':' + str(mce.mo.classId)
-		#print mce.eventId
-		#print mce.changeList
-		#print mce.mo.classId
+		print 'EventId'.ljust(tabsize * 2) + ':' + str(mce.eventId)
+		print 'ChangeList'.ljust(tabsize * 2) + ':' + str(mce.changeList)
+		print 'ClassId'.ljust(tabsize * 2) + ':' + str(mce.mo.classId)
+
+	# print mce.eventId
+	# print mce.changeList
+	# print mce.mo.classId
 
 
-def CompareManagedObject(referenceObject, differenceObject, excludeDifferent=YesOrNo.FALSE, includeEqual=YesOrNo.FALSE, noVersionFilter=YesOrNo.FALSE, includeOperational=YesOrNo.FALSE, xlateOrg=None, xlateMap=None):
+def CompareManagedObject(referenceObject, differenceObject, excludeDifferent=YesOrNo.FALSE, includeEqual=YesOrNo.FALSE,
+						 noVersionFilter=YesOrNo.FALSE, includeOperational=YesOrNo.FALSE, xlateOrg=None, xlateMap=None):
 	"""
-	Compares managed objects.
-	
-	- referenceObject specifies objects used as a reference for comparison.
-	- differenceObject specifies objects that are compared to the reference objects.
-	- excludeDifferent, if set as True then displays only the properties of compared objects that are equal.
-	- includeEqual, set as True to display properties of compared objects that are equal. By default, only properties that differ between the 
-	  reference and difference objects are displayed.
-	- noVersionFilter, set as True to ignore minimum version in properties.
-	- includeOperational, set as True to include operational properties.
-	- xlateOrg specifies the translation org to be used.
-	- xlateMap specifies translation map with DNs of entities that needs to be translated.
-	"""
+    Compares managed objects.
+
+    - referenceObject specifies objects used as a reference for comparison.
+    - differenceObject specifies objects that are compared to the reference objects.
+    - excludeDifferent, if set as True then displays only the properties of compared objects that are equal.
+    - includeEqual, set as True to display properties of compared objects that are equal. By default, only properties that differ between the
+      reference and difference objects are displayed.
+    - noVersionFilter, set as True to ignore minimum version in properties.
+    - includeOperational, set as True to include operational properties.
+    - xlateOrg specifies the translation org to be used.
+    - xlateMap specifies translation map with DNs of entities that needs to be translated.
+    """
 	from UcsBase import UcsUtils, WriteUcsWarning, GenericMO
 	from Mos import OrgOrg
+
 	referenceDict = {}
 	differenceDict = {}
 
-	if ((referenceObject != None) and (isinstance(referenceObject,list)) and (len(referenceObject) > 0)):
+	if ((referenceObject != None) and (isinstance(referenceObject, list)) and (len(referenceObject) > 0)):
 		for mo in referenceObject:
 			if mo == None:
 				continue
@@ -4224,10 +4471,11 @@ def CompareManagedObject(referenceObject, differenceObject, excludeDifferent=Yes
 			moMeta = UcsUtils.IsPropertyInMetaIgnoreCase(mo.propMoMeta.name, "Meta")
 			if (moMeta != None):
 				if (moMeta.io == UcsMoMeta.ACCESS_TYPE_OUTPUTONLY):
-					#WriteUcsWarning('[Warning]: Ignoring [%s]. Non-configurable class [%s]' %(mo.Dn, mo.propMoMeta.name))
+					# WriteUcsWarning('[Warning]: Ignoring [%s]. Non-configurable class [%s]' %(mo.Dn, mo.propMoMeta.name))
 					continue
-				if ((moMeta.io == UcsMoMeta.ACCESS_TYPE_IO) and (len(moMeta.access) == 1 ) and (moMeta.access[0] == "read-only") ):
-					#WriteUcsWarning('[Warning]: Ignoring read-only MO  [%s]. Class [%s]' %(mo.Dn, mo.propMoMeta.name))
+				if ((moMeta.io == UcsMoMeta.ACCESS_TYPE_IO) and (len(moMeta.access) == 1) and (
+							moMeta.access[0] == "read-only")):
+					# WriteUcsWarning('[Warning]: Ignoring read-only MO  [%s]. Class [%s]' %(mo.Dn, mo.propMoMeta.name))
 					continue
 
 			referenceDict[mo.Dn] = mo
@@ -4240,30 +4488,31 @@ def CompareManagedObject(referenceObject, differenceObject, excludeDifferent=Yes
 			moMeta = UcsUtils.IsPropertyInMetaIgnoreCase(mo.propMoMeta.name, "Meta")
 			if (moMeta != None):
 				if (moMeta.io == UcsMoMeta.ACCESS_TYPE_OUTPUTONLY):
-					#WriteUcsWarning('[Warning]: Ignoring [%s]. Non-configurable class [%s]' %(mo.Dn, mo.propMoMeta.name))
+					# WriteUcsWarning('[Warning]: Ignoring [%s]. Non-configurable class [%s]' %(mo.Dn, mo.propMoMeta.name))
 					continue
-				if ((moMeta.io == UcsMoMeta.ACCESS_TYPE_IO) and (len(moMeta.access) == 1 ) and (moMeta.access[0] == "read-only") ):
-					#WriteUcsWarning('[Warning]: Ignoring read-only MO  [%s]. Class [%s]' %(mo.Dn, mo.propMoMeta.name))
+				if ((moMeta.io == UcsMoMeta.ACCESS_TYPE_IO) and (len(moMeta.access) == 1) and (
+							moMeta.access[0] == "read-only")):
+					# WriteUcsWarning('[Warning]: Ignoring read-only MO  [%s]. Class [%s]' %(mo.Dn, mo.propMoMeta.name))
 					continue
 
 			translatedMo = TranslateManagedObject(mo, xlateOrg, xlateMap)
 			differenceDict[translatedMo.Dn] = translatedMo
 
 	dnList = []
-	for key in referenceDict.keys():
+	for key in referenceDict:
 		dnList.append(key)
-	for key in differenceDict.keys():
-		if key not in referenceDict.keys():
+	for key in differenceDict:
+		if key not in referenceDict:
 			dnList.append(key)
 	dnList = sorted(dnList)
 	diffOutput = []
 
 	for dn in dnList:
-		if dn not in differenceDict.keys():
+		if dn not in differenceDict:
 			if excludeDifferent not in _AffirmativeList:
 				moDiff = UcsMoDiff(referenceDict[dn], UcsMoDiff.REMOVE)
 				diffOutput.append(moDiff)
-		elif dn not in referenceDict.keys():
+		elif dn not in referenceDict:
 			if excludeDifferent not in _AffirmativeList:
 				moDiff = UcsMoDiff(differenceDict[dn], UcsMoDiff.ADD_MODIFY)
 				diffOutput.append(moDiff)
@@ -4303,16 +4552,19 @@ def CompareManagedObject(referenceObject, differenceObject, excludeDifferent=Yes
 
 	return diffOutput
 
+
 def Compare(fromMo, toMo, diff):
 	""" Internal method to support CompareManagedObject functionality. """
 	from UcsBase import UcsUtils
+
 	if (fromMo.classId != toMo.classId):
 		return CompareStatus.TypesDifferent
 
 	for prop in UcsUtils.GetUcsPropertyMetaAttributeList(str(fromMo.classId)):
 		propMeta = UcsUtils.IsPropertyInMetaIgnoreCase(fromMo.classId, prop)
 		if propMeta != None:
-			if ((propMeta.access == UcsPropertyMeta.Internal) or (propMeta.access == UcsPropertyMeta.ReadOnly) or (prop in toMo._excludePropList)):
+			if ((propMeta.access == UcsPropertyMeta.Internal) or (propMeta.access == UcsPropertyMeta.ReadOnly) or (
+						prop in toMo._excludePropList)):
 				continue
 			if ((toMo.__dict__.has_key(prop)) and (fromMo.getattr(prop) != toMo.getattr(prop))):
 				diff.append(prop)
@@ -4321,6 +4573,7 @@ def Compare(fromMo, toMo, diff):
 		return CompareStatus.PropsDifferent
 
 	return CompareStatus.Equal
+
 
 def TranslateManagedObject(mObj, xlateOrg, xlateMap):
 	""" Method used to translate a managedobject. This method is used in CompareManagedObject. """
@@ -4335,52 +4588,53 @@ def TranslateManagedObject(mObj, xlateOrg, xlateMap):
 			if UcsUtils.WordL(xMO.classId) == OrgOrg.ClassId():
 				orgMoMeta = UcsUtils.GetUcsPropertyMeta(UcsUtils.WordU(OrgOrg.ClassId()), "Meta")
 				if orgMoMeta == None:
-					#TODO: Add Warning/Error messages in Logger.
-					WriteUcsWarning('[Warning]: Could not translate [%s]' %(xMO.Dn))
+					# TODO: Add Warning/Error messages in Logger.
+					WriteUcsWarning('[Warning]: Could not translate [%s]' % (xMO.Dn))
 					return xMO
 
-				#Check for naming property
+				# Check for naming property
 				matchObj1 = re.findall(r'(\[[^\]]+\])', orgMoMeta.rn)
 				if matchObj1:
 					UpdateMoDnAlongWithNamingProperties(xMO, orgMoMeta, xlateOrg)
 				else:
-					newDn = re.sub("%s"%(matchObj.group(0)), "%s"%(xlateOrg), xMO.Dn)
-					#print "Translating", xMO.Dn, " => ", newDn
+					newDn = re.sub("%s" % (matchObj.group(0)), "%s" % (xlateOrg), xMO.Dn)
+					# print "Translating", xMO.Dn, " => ", newDn
 					xMO.Dn = newDn
 			else:
-				newDn = re.sub("^%s/"%(matchObj.group(0)), "%s/"%(xlateOrg), xMO.Dn)
-				#print "Translating", xMO.Dn, " => ", newDn
+				newDn = re.sub("^%s/" % (matchObj.group(0)), "%s/" % (xlateOrg), xMO.Dn)
+				# print "Translating", xMO.Dn, " => ", newDn
 				xMO.Dn = newDn
 
 	if (xlateMap != None):
 		originalDn = xMO.Dn
-		if originalDn in xlateMap.keys():
+		if originalDn in xlateMap:
 			xMoMeta = UcsUtils.GetUcsPropertyMeta(UcsUtils.WordU(xMO.classId), "Meta")
 			if xMoMeta == None:
-				#TODO: Add Warning/Error messages in Logger.
-				WriteUcsWarning('[Warning]: Could not translate [%s]' %(originalDn))
+				# TODO: Add Warning/Error messages in Logger.
+				WriteUcsWarning('[Warning]: Could not translate [%s]' % (originalDn))
 				return xMO
 
-			#Check for naming property
+			# Check for naming property
 			matchObj = re.findall(r'(\[[^\]]+\])', xMoMeta.rn)
 			if matchObj:
 				UpdateMoDnAlongWithNamingProperties(xMO, xMoMeta, xlateMap[originalDn])
 			else:
-				#print "Translating", xMO.Dn, " => ", xlateMap[originalDn]
+				# print "Translating", xMO.Dn, " => ", xlateMap[originalDn]
 				xMO.Dn = xlateMap[originalDn]
 		else:
 			originalDn = re.sub(r'[/]*[^/]+$', '', originalDn)
 			while (originalDn != None or originalDn == ""):
-				if (not(originalDn in xlateMap.keys())):
+				if (not (originalDn in xlateMap)):
 					originalDn = re.sub(r'[/]*[^/]+$', '', originalDn)
 					continue
 
-				newDn = re.sub("^%s/"%(originalDn), "%s/"%(xlateMap[originalDn]), xMO.Dn)
-				#print "Translating", xMO.Dn, " => ", newDn
+				newDn = re.sub("^%s/" % (originalDn), "%s/" % (xlateMap[originalDn]), xMO.Dn)
+				# print "Translating", xMO.Dn, " => ", newDn
 				xMO.Dn = newDn
 				break
 
 	return xMO
+
 
 def UpdateMoDnAlongWithNamingProperties(mo, orgMoMeta, newDn):
 	mo.Dn = newDn
@@ -4393,48 +4647,51 @@ def UpdateMoDnAlongWithNamingProperties(mo, orgMoMeta, newDn):
 	pattern = "^" + modmetaRn + "$"
 	matchObj = re.match(pattern, newRn)
 	namePropDict = matchObj.groupdict()
-	for groupName in namePropDict.keys():
+	for groupName in namePropDict:
 		UpdateNamedPropertyField(mo, groupName, namePropDict[groupName])
+
 
 def UpdateNamedPropertyField(mo, fieldName, fieldValue):
 	from UcsBase import UcsUtils, WriteUcsWarning
+
 	propertyMeta = UcsUtils.IsPropertyInMetaIgnoreCase(mo.classId, fieldName)
 	if ((propertyMeta != None) and (propertyMeta.access == UcsPropertyMeta.Naming)):
-		#WriteUcsWarning('Translating [%s] from [%s] => [%s]' %(fieldName, mo.getattr(fieldName), fieldValue))
+		# WriteUcsWarning('Translating [%s] from [%s] => [%s]' %(fieldName, mo.getattr(fieldName), fieldValue))
 		mo.setattr(fieldName, fieldValue)
+
 
 def ExportUcsSession(filePath, key, merge=YesOrNo.FALSE):
 	"""
-	Stores the credential of currently logged in UCS in current session to a file. Password will be stored in encrypted format using key.
-	
-	- filePath specifies the path of the credential file.
-	- key specifies any string used for secure encryption.
-	- merge should be set as False unless user wants to append the existing credential file with new credential.
-	"""
-	from UcsBase import UcsUtils, WriteUcsWarning,UcsValidationException
-	#from p3 import p3_encrypt, p3_decrypt
-	
+    Stores the credential of currently logged in UCS in current session to a file. Password will be stored in encrypted format using key.
+
+    - filePath specifies the path of the credential file.
+    - key specifies any string used for secure encryption.
+    - merge should be set as False unless user wants to append the existing credential file with new credential.
+    """
+	from UcsBase import UcsUtils, WriteUcsWarning, UcsValidationException
+	# from p3 import p3_encrypt, p3_decrypt
+
 	if filePath is None:
 		raise UcsValidationException("filePath parameter is not provided.")
-		#raise Exception('[Error]: Please provide filePath')
-	
+	# raise Exception('[Error]: Please provide filePath')
+
 	if key is None:
 		raise UcsValidationException("key parameter is not provided.")
-		#raise Exception('[Error]: Please provide key')		
-	
+	# raise Exception('[Error]: Please provide key')
+
 	doc = xml.dom.minidom.Document()
 	nodeList = None
-	
-	if merge in _AffirmativeList and os.path.isfile(filePath):#isfile() checks for file. exists() return true for directory as well
-		doc =  xml.dom.minidom.parse(filePath)
-		#nodeList = doc.documentElement._get_childNodes()
+
+	if merge in _AffirmativeList and os.path.isfile(
+			filePath):  # isfile() checks for file. exists() return true for directory as well
+		doc = xml.dom.minidom.parse(filePath)
+		# nodeList = doc.documentElement._get_childNodes()
 		nodeList = doc.documentElement.childNodes
 	else:
 		doc.appendChild(doc.createElement(UcsLoginXml.UCS_HANDLES))
 
-	
 	hUcsArray = defaultUcs.values()
-	
+
 	if hUcsArray != None:
 		for hUcs in hUcsArray:
 			updated = False
@@ -4442,11 +4699,12 @@ def ExportUcsSession(filePath, key, merge=YesOrNo.FALSE):
 				for childNode in nodeList:
 					if (childNode.nodeType != Node.ELEMENT_NODE):
 						continue
-					
+
 					elem = childNode
 					if ((not elem.hasAttribute(UcsLoginXml.NAME)) or (not elem.hasAttribute(UcsLoginXml.USER_NAME))):
 						continue
-					if ((elem.getAttribute(UcsLoginXml.NAME) != hUcs._name) or (elem.getAttribute(UcsLoginXml.USER_NAME) != hUcs._username)):
+					if ((elem.getAttribute(UcsLoginXml.NAME) != hUcs._name) or (
+								elem.getAttribute(UcsLoginXml.USER_NAME) != hUcs._username)):
 						continue
 
 					if hUcs._noSsl:
@@ -4459,15 +4717,15 @@ def ExportUcsSession(filePath, key, merge=YesOrNo.FALSE):
 					elif elem.hasAttribute(UcsLoginXml.PORT):
 						elem.removeAttribute(UcsLoginXml.PORT)
 
-					#elem.setAttribute(UcsLoginXml.PASSWORD, p3_encrypt(hUcs._password,key))
-					elem.setAttribute(UcsLoginXml.PASSWORD, UcsUtils.EncryptPassword(hUcs._password,key))
-					
+					# elem.setAttribute(UcsLoginXml.PASSWORD, p3_encrypt(hUcs._password,key))
+					elem.setAttribute(UcsLoginXml.PASSWORD, UcsUtils.EncryptPassword(hUcs._password, key))
+
 					updated = True
 					break
-				
+
 			if updated:
 				continue
-			
+
 			node = doc.createElement(UcsLoginXml.UCS)
 			attr = doc.createAttribute(UcsLoginXml.NAME)
 			attr.value = hUcs._name
@@ -4475,127 +4733,127 @@ def ExportUcsSession(filePath, key, merge=YesOrNo.FALSE):
 			attr = doc.createAttribute(UcsLoginXml.USER_NAME)
 			attr.value = hUcs._username
 			node.setAttributeNode(attr)
-			
+
 			if hUcs._noSsl:
 				attr = doc.createAttribute(UcsLoginXml.NO_SSL)
 				attr.value = hUcs._noSsl
 				node.setAttributeNode(attr)
-				
+
 			if ((hUcs._noSsl and (hUcs._port != 80)) or ((not hUcs._noSsl) and (hUcs._port != 443))):
 				attr = doc.createAttribute(UcsLoginXml.PORT)
 				attr.value = hUcs._port
-				node.setAttributeNode(attr)		
-				
+				node.setAttributeNode(attr)
+
 			attr = doc.createAttribute(UcsLoginXml.PASSWORD)
-			#attr.value = p3_encrypt(hUcs._password,key)
-			attr.value = UcsUtils.EncryptPassword(hUcs._password,key)
+			# attr.value = p3_encrypt(hUcs._password,key)
+			attr.value = UcsUtils.EncryptPassword(hUcs._password, key)
 			node.setAttributeNode(attr)
-			
+
 			doc.documentElement.insertBefore(node, doc.documentElement.lastChild)
-	
-	
+
 	xmlNew = doc.toprettyxml(indent=" ")
-	xmlNew = re.sub(r"^.*?xml version.*\n","",xmlNew)
-	xmlNew = re.sub(r"\n[\s]*\n","\n",xmlNew)
-	xmlNew = re.sub(r"^(.*)",r"\1",xmlNew, re.MULTILINE)
-		
+	xmlNew = re.sub(r"^.*?xml version.*\n", "", xmlNew)
+	xmlNew = re.sub(r"\n[\s]*\n", "\n", xmlNew)
+	xmlNew = re.sub(r"^(.*)", r"\1", xmlNew, re.MULTILINE)
+
 	f = open(filePath, 'w')
 	f.write(xmlNew)
 	f.close()
 
-	
 
 def ImportUcsSession(filePath, key):
 	"""
-	This operation will do a login to each UCS which is present in credential file.
-	
-	- filePath specifies the path of the credential file.
-	- key specifies string used for secure encryption while ExportUcsSession operation.
-	"""
+    This operation will do a login to each UCS which is present in credential file.
+
+    - filePath specifies the path of the credential file.
+    - key specifies string used for secure encryption while ExportUcsSession operation.
+    """
 	from UcsBase import UcsUtils, WriteUcsWarning, UcsValidationException
-	#from p3 import p3_encrypt, p3_decrypt
-	
+	# from p3 import p3_encrypt, p3_decrypt
+
 	if filePath is None:
 		raise UcsValidationException("filePath parameter is not provided.")
-		#raise Exception('[Error]: Please provide filePath')
+	# raise Exception('[Error]: Please provide filePath')
 
 	if key is None:
 		raise UcsValidationException("key parameter is not provided.")
-		#raise Exception('[Error]: Please provide key')
-		
+	# raise Exception('[Error]: Please provide key')
+
 	if not os.path.isfile(filePath) or not os.path.exists(filePath):
-		raise UcsValidationException('[Error]: File <%s> does not exist ' %(filePath))
-		#raise Exception('[Error]: File <%s> does not exist ' %(filePath))
-	
+		raise UcsValidationException('[Error]: File <%s> does not exist ' % (filePath))
+	# raise Exception('[Error]: File <%s> does not exist ' %(filePath))
+
 	doc = xml.dom.minidom.parse(filePath)
 	topNode = doc.documentElement
-	#print topNode.localName
-	
+	# print topNode.localName
+
 	if topNode is None or topNode.localName != UcsLoginXml.UCS_HANDLES:
 		return None
-	
-	if(topNode.hasChildNodes()):
-		#childList = topNode._get_childNodes()
-		#childCount = childList._get_length()
+
+	if (topNode.hasChildNodes()):
+		# childList = topNode._get_childNodes()
+		# childCount = childList._get_length()
 		childList = topNode.childNodes
 		childCount = len(childList)
 		for i in range(childCount):
 			childNode = childList.item(i)
 			if (childNode.nodeType != Node.ELEMENT_NODE):
 				continue
-			
+
 			if childNode.localName != UcsLoginXml.UCS:
 				continue
-			
+
 			lName = None
 			lUsername = None
 			lPassword = None
 			lNoSsl = False
 			lPort = None
-			
+
 			if childNode.hasAttribute(UcsLoginXml.NAME):
 				lName = childNode.getAttribute(UcsLoginXml.NAME)
-				
+
 			if childNode.hasAttribute(UcsLoginXml.USER_NAME):
 				lUsername = childNode.getAttribute(UcsLoginXml.USER_NAME)
-			
+
 			if childNode.hasAttribute(UcsLoginXml.PASSWORD):
-				#lPassword = p3_decrypt(childNode.getAttribute(UcsLoginXml.PASSWORD), key)
+				# lPassword = p3_decrypt(childNode.getAttribute(UcsLoginXml.PASSWORD), key)
 				lPassword = UcsUtils.DecryptPassword(childNode.getAttribute(UcsLoginXml.PASSWORD), key)
-							
+
 			if childNode.hasAttribute(UcsLoginXml.NO_SSL):
 				lNoSsl = childNode.getAttribute(UcsLoginXml.NO_SSL)
-			
+
 			if childNode.hasAttribute(UcsLoginXml.PORT):
 				lPort = childNode.getAttribute(UcsLoginXml.PORT)
-			
+
 			# Process Login
 			if ((lName is None) or (lUsername == None) or (lPassword == None)):
-				#WriteUcsWarning("[Warning] Insufficient information for login ...")
+				# WriteUcsWarning("[Warning] Insufficient information for login ...")
 				continue
 			try:
-				
+
 				handle = UcsHandle()
 				handle.Login(name=lName, username=lUsername, password=lPassword, noSsl=lNoSsl, port=lPort)
-				
-				
+
+
 			except Exception, err:
-				#TODO: Add Warning/Error messages in Logger.
-				WriteUcsWarning("[Connection Error<%s>] %s" %(lName,str(err)))
-				#print "Exception:", str(err)
+				# TODO: Add Warning/Error messages in Logger.
+				WriteUcsWarning("[Connection Error<%s>] %s" % (lName, str(err)))
+			# print "Exception:", str(err)
+
 
 class SmartRedirectHandler(urllib2.HTTPRedirectHandler):
 	""" Class to handle connection to UCS via redirection. """
-	def http_error_301(self, req, fp, code, msg, headers):  
-		#result = urllib2.HTTPRedirectHandler.http_error_301(self, req, fp, code, msg, headers)			  
-		respStatus = [code, headers.dict["location"]]							
+
+	def http_error_301(self, req, fp, code, msg, headers):
+		# result = urllib2.HTTPRedirectHandler.http_error_301(self, req, fp, code, msg, headers)
+		respStatus = [code, headers.dict["location"]]
 		return respStatus
 
-	def http_error_302(self, req, fp, code, msg, headers):  
-		#result = urllib2.HTTPRedirectHandler.http_error_301(self, req, fp, code, msg, headers)			  
+	def http_error_302(self, req, fp, code, msg, headers):
+		# result = urllib2.HTTPRedirectHandler.http_error_301(self, req, fp, code, msg, headers)
 		respStatus = [code, headers.dict["location"]]
-		#print respStatus								
-		return respStatus 
+		# print respStatus
+		return respStatus
 
 
 class UcsLoginXml:
@@ -4608,24 +4866,27 @@ class UcsLoginXml:
 	PORT = "port"
 	PASSWORD = "password"
 
+
 class Progress(object):
 	def __init__(self):
 		self._seen = 0.0
 
 	def update(self, total, size, name):
 		from sys import stdout
+
 		self._seen += size
-		#pct = (self._seen / total) * 100.0
-		#print '%s progress: %.2f' % (name, pct)
+		# pct = (self._seen / total) * 100.0
+		# print '%s progress: %.2f' % (name, pct)
 		status = r"%10d  [%3.2f%%]" % (self._seen, self._seen * 100 / total)
-		status = status + chr(8)*(len(status)+1)
+		status = status + chr(8) * (len(status) + 1)
 		stdout.write("\r%s" % status)
 		stdout.flush()
+
 
 class file_with_callback(file):
 	def __init__(self, path, mode, callback, *args):
 		file.__init__(self, path, mode)
-		#self.seek(0, os.SEEK_END)
+		# self.seek(0, os.SEEK_END)
 		self.seek(0, 2)
 		self._total = self.tell()
 		self.seek(0)

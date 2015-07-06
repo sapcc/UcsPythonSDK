@@ -13,9 +13,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from UcsSdk import *
-from UcsSdk.utils import helper as ucs_helper
-from UcsSdk.utils import exception
+import sys, os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from UcsBase import UcsException
+sys.path.remove(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import helper as ucs_helper
+import exception
+from spmanager import SPManager
+
 
 class BootDeviceHelper(object):
     """Cisco UCS Service Profile Boot Device helper."""
@@ -27,8 +34,9 @@ class BootDeviceHelper(object):
             :param password: Login user password
             """
         self.helper = helper
+        self.sp_manager = SPManager(helper.handle, helper.service_profile)
 
-    def set_boot_device(self, device, persistent):
+    def set_boot_device(self, device, persistent=False):
         """Set the boot device for the node.
 
             Set the boot device to use on next reboot of the node.
@@ -39,103 +47,14 @@ class BootDeviceHelper(object):
                 Default: False. Ignored by this driver.
             :raises: UcsOperationError if it UCS Manager reports any error.
             """
-        sp_rn = self.helper.service_profile
-        dn, sp_rn = sp_rn.split("/ls-", -1)
-        boot_policy_rn = "boot-policy-" + "Ironic-" + sp_rn
-        boot_policy_dn = UcsUtils.MakeDn([dn, boot_policy_rn])
-        boot_policy_cfg = {
-                LsbootPolicy.NAME: "Ironic-" + sp_rn,
-                LsbootPolicy.PURPOSE: "operational",
-                LsbootPolicy.REBOOT_ON_UPDATE: "no",
-                LsbootPolicy.ENFORCE_VNIC_NAME: "no"
-                }
 
         operation = "set_boot_device"
         try:
-            ucs_helper.config_managed_object(dn,
-                              OrgOrg.ClassId(),
-                              LsbootPolicy.ClassId(),
-                              boot_policy_cfg,
-                              boot_policy_dn,
-                              self.helper.handle)
+            self.sp_manager.create_boot_policy()
+            self.sp_manager.set_boot_device(device)
+
         except UcsException as ex:
             raise exception.UcsOperationError(operation=operation, error=ex)
-
-        if device == 'cdrom':
-            boot_vm_dn = UcsUtils.MakeDn([boot_policy_dn,
-                             "read-only-vm"])
-            boot_vm_list = {'Order': 1}
-            try:
-                ucs_helper.config_managed_object(boot_policy_dn,
-                                 LsbootPolicy.ClassId(),
-                                 LsbootVirtualMedia.ClassId(),
-                                 boot_vm_list, boot_vm_dn,
-                                 self.helper.handle)
-            except UcsException as ex:
-                print(_("Cisco client exception: %(msg)s."), {'msg': ex})
-                raise exception.UcsOperationError(operation=operation,
-                                                  error=ex)
-        elif device == 'pxe':
-            boot_lan_dn = UcsUtils.MakeDn([boot_policy_dn,
-                              "lan"])
-            boot_lan_img_path_cfg = {'Type': 'primary', 'VnicName': 'eth0'}
-            boot_lan_cfg = {'Type': 'lan',
-                            'Access': 'read-only',
-                            'Prot': 'pxe',
-                            'Order': 1}
-            image_path_dn = UcsUtils.MakeDn([boot_lan_dn,
-                                "path-primary"])
-            try:
-                print(_(boot_lan_cfg))
-                print(_(boot_lan_img_path_cfg))
-                ucs_helper.config_managed_object(boot_policy_dn,
-                               LsbootPolicy.ClassId(),
-                               LsbootLan.ClassId(),
-                               boot_lan_cfg, boot_lan_dn,
-                               self.helper.handle)
-                ucs_helper.config_managed_object(boot_lan_dn,
-                              LsbootLan.ClassId(),
-                              LsbootLanImagePath.ClassId(),
-                              boot_lan_img_path_cfg,
-                              image_path_dn,
-                              self.helper.handle)
-            except UcsException as ex:
-                print(_("Cisco client exception: %(msg)s."),{'msg': ex})
-                raise exception.UcsOperationError(operation=operation,
-                                                  error=ex)
-        elif device == 'disk':
-            boot_storage_dn = UcsUtils.MakeDn([boot_policy_dn,
-                                  "storage"])
-            boot_storage_cfg = {'Order': 1}
-            boot_local_storage_dn = (UcsUtils.MakeDn([boot_storage_dn,
-                    "local-storage"]))
-            try:
-                ucs_helper.config_managed_object(boot_policy_dn,
-                    LsbootPolicy.ClassId(),
-                    LsbootStorage.ClassId(),
-                    boot_storage_cfg, boot_storage_dn,
-                    self.helper.handle)
-
-                ucs_helper.config_managed_object(boot_storage_dn,
-                    LsbootStorage.ClassId(),
-                    LsbootLocalStorage.ClassId(), {},
-                    boot_local_storage_dn,
-                    self.helper.handle)
-            except UcsException as ex:
-                print(_("Cisco client exception: %(msg)s."), {'msg': ex})
-                raise exception.UcsOperationError(operation=operation,
-                                                  error=ex)
-        try:
-            ucs_helper.config_managed_object(
-                     "org-root",
-                     OrgOrg.ClassId(), LsServer.ClassId(),
-                     {'BootPolicyName': "Ironic-" + sp_rn},
-                     "org-root/ls-devstack",
-                     self.helper.handle, delete=False)
-        except UcsException as ex:
-            print(_("Cisco client exception: %(msg)s."), {'msg': ex})
-            raise exception.UcsOperationError(operation=operation,
-                                              error=ex)
 
     def get_boot_device(self):
         """Get the current boot device for the node.
@@ -155,33 +74,8 @@ class BootDeviceHelper(object):
             """
         operation = 'get_boot_device'
         try:
-            boot_device = None
-            ls_server = ucs_helper.get_managed_object(
-                              self.helper.handle,
-                              LsServer.ClassId(),
-                              {LsServer.DN: self.helper.service_profile})
-            if not ls_server:
-                raise exception.UcsOperationError(operation=operation,
-                          error="Failed to get power MO, "
-                          "configure valid service-profile.")
-            for server in ls_server:
-                in_filter = ucs_helper.create_dn_in_filter(
-                    LsbootDef.ClassId(), "%s/" %
-                    server.getattr(LsServer.PN_DN),
-                    self)
-
-                lsboot_def = ucs_helper.get_resolve_class(
-                     self.helper.handle,
-                     LsbootDef.ClassId(), in_filter, in_heir=True)
-
-                if lsboot_def.errorCode == 0:
-                    for boot_def in lsboot_def.OutConfigs.GetChild():
-                        boot_orders = boot_def.GetChild()
-                        for boot_order in boot_orders:
-                            if boot_order.getattr("Order") == "1":
-                                boot_device = boot_order.getattr("Type")
-                                break
-            return {'boot_device': boot_device, 'persistent': None}
+            boot_device = self.sp_manager.get_boot_device()
+            return boot_device
         except UcsException as ex:
             print(_("Cisco client exception: %(msg)s."), {'msg': ex})
             raise exception.UcsOperationError(operation=operation, error=ex)

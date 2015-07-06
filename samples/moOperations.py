@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script shows the use of generic operations/APIs with Managed Object.
+# This script shows the use of Generic Operation with Managed Object.
 # GetManagedObject 		: Retrieves the Managed Object information from UCS
 #						  Manager.
 # AddManagedObject 		: Adds the Managed Object to UCS Manager.

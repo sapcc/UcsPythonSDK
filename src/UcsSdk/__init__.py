@@ -1,3 +1,4 @@
+
 # Copyright 2013 Cisco Systems, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,3 +23,5 @@ from WatchUcsGui import *
 from ConvertFromBackup import *
 from CcoImage import *
 from Version import __version__
+from utils import *
+loadUcsConfig()

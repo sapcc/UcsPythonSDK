@@ -35,9 +35,11 @@ _MethodFactoryMeta = {
 		"OutAllow":UcsFactoryMeta("OutAllow", "outAllow", "Xs:string", "Version142b", "Output", False),
 		"OutAuthDomain":UcsFactoryMeta("OutAuthDomain", "outAuthDomain", "Xs:string", "Version142b", "Output", False),
 		"OutAuthUser":UcsFactoryMeta("OutAuthUser", "outAuthUser", "Xs:string", "Version142b", "Output", False),
+		"OutKvmPriv":UcsFactoryMeta("OutKvmPriv", "outKvmPriv", "Xs:string", "Version142b", "Output", False),
 		"OutLocales":UcsFactoryMeta("OutLocales", "outLocales", "Xs:string", "Version142b", "Output", False),
 		"OutPriv":UcsFactoryMeta("OutPriv", "outPriv", "Xs:string", "Version142b", "Output", False),
 		"OutRemote":UcsFactoryMeta("OutRemote", "outRemote", "Xs:string", "Version142b", "Output", False),
+		"OutVMediaPriv":UcsFactoryMeta("OutVMediaPriv", "outVMediaPriv", "Xs:string", "Version142b", "Output", False),
 		"Meta":UcsFactoryMethodMeta("AaaCheckComputeAuthToken","aaaCheckComputeAuthToken", "Version142b"),
 	},
 
@@ -213,6 +215,16 @@ _MethodFactoryMeta = {
 		"Meta":UcsFactoryMethodMeta("ApeGetAdaptorConnectivity","apeGetAdaptorConnectivity", "Version142b"),
 	},
 
+	"ApeGetNextId": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"InChassisId":UcsFactoryMeta("InChassisId", "inChassisId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InMoType":UcsFactoryMeta("InMoType", "inMoType", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InServerInstanceId":UcsFactoryMeta("InServerInstanceId", "inServerInstanceId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InSlotId":UcsFactoryMeta("InSlotId", "inSlotId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"OutNextId":UcsFactoryMeta("OutNextId", "outNextId", "Xs:unsignedInt", "Version142b", "Output", False),
+		"Meta":UcsFactoryMethodMeta("ApeGetNextId","apeGetNextId", "Version142b"),
+	},
+
 	"ApeGetPnuOSInventory": {
 		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
 		"InFruModel":UcsFactoryMeta("InFruModel", "inFruModel", "Xs:string", "Version142b", "Input", False),
@@ -220,6 +232,15 @@ _MethodFactoryMeta = {
 		"InFruVendor":UcsFactoryMeta("InFruVendor", "inFruVendor", "Xs:string", "Version142b", "Input", False),
 		"OutOutConfig":UcsFactoryMeta("OutOutConfig", "outOutConfig", "ConfigConfig", "Version142b", "Output", True),
 		"Meta":UcsFactoryMethodMeta("ApeGetPnuOSInventory","apeGetPnuOSInventory", "Version142b"),
+	},
+
+	"ApeGetServerFromIp": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"InIpAddr":UcsFactoryMeta("InIpAddr", "inIpAddr", "AddressIPv4", "Version142b", "Input", False),
+		"OutChassisId":UcsFactoryMeta("OutChassisId", "outChassisId", "Xs:string", "Version142b", "Output", False),
+		"OutServerInstanceId":UcsFactoryMeta("OutServerInstanceId", "outServerInstanceId", "Xs:unsignedInt", "Version142b", "Output", False),
+		"OutSlotId":UcsFactoryMeta("OutSlotId", "outSlotId", "Xs:unsignedInt", "Version142b", "Output", False),
+		"Meta":UcsFactoryMethodMeta("ApeGetServerFromIp","apeGetServerFromIp", "Version142b"),
 	},
 
 	"ApeGetSwitchApeFru": {
@@ -269,9 +290,16 @@ _MethodFactoryMeta = {
 		"Meta":UcsFactoryMethodMeta("ApeInsertNewRack","apeInsertNewRack", "Version142b"),
 	},
 
+	"ApeIssueAdaptorId": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"InConfig":UcsFactoryMeta("InConfig", "inConfig", "ConfigConfig", "Version142b", "Input", True),
+		"Meta":UcsFactoryMethodMeta("ApeIssueAdaptorId","apeIssueAdaptorId", "Version142b"),
+	},
+
 	"ApeIssueChassisId": {
 		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
 		"InConfig":UcsFactoryMeta("InConfig", "inConfig", "ConfigConfig", "Version142b", "Input", True),
+		"InSwId":UcsFactoryMeta("InSwId", "inSwId", "Xs:string", "Version142b", "Input", False),
 		"Meta":UcsFactoryMethodMeta("ApeIssueChassisId","apeIssueChassisId", "Version142b"),
 	},
 
@@ -297,6 +325,7 @@ _MethodFactoryMeta = {
 	"ApeMcGetBiosTokens": {
 		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
 		"InChassisId":UcsFactoryMeta("InChassisId", "inChassisId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InInstanceId":UcsFactoryMeta("InInstanceId", "inInstanceId", "Xs:unsignedInt", "Version142b", "Input", False),
 		"InSlotId":UcsFactoryMeta("InSlotId", "inSlotId", "Xs:unsignedInt", "Version142b", "Input", False),
 		"OutFilePath":UcsFactoryMeta("OutFilePath", "outFilePath", "Xs:string", "Version142b", "Output", False),
 		"Meta":UcsFactoryMethodMeta("ApeMcGetBiosTokens","apeMcGetBiosTokens", "Version142b"),
@@ -313,6 +342,7 @@ _MethodFactoryMeta = {
 	"ApeMcGetSmbios": {
 		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
 		"InChassisId":UcsFactoryMeta("InChassisId", "inChassisId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InIpAddr":UcsFactoryMeta("InIpAddr", "inIpAddr", "AddressIPv4", "Version142b", "Input", False),
 		"InSlotId":UcsFactoryMeta("InSlotId", "inSlotId", "Xs:unsignedInt", "Version142b", "Input", False),
 		"InUpdateCnt":UcsFactoryMeta("InUpdateCnt", "inUpdateCnt", "Xs:int", "Version142b", "Input", False),
 		"OutFilePath":UcsFactoryMeta("OutFilePath", "outFilePath", "Xs:string", "Version142b", "Output", False),
@@ -344,9 +374,11 @@ _MethodFactoryMeta = {
 		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
 		"InChassisId":UcsFactoryMeta("InChassisId", "inChassisId", "Xs:unsignedInt", "Version142b", "Input", False),
 		"InFaultLevel":UcsFactoryMeta("InFaultLevel", "inFaultLevel", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InInstanceId":UcsFactoryMeta("InInstanceId", "inInstanceId", "Xs:unsignedInt", "Version142b", "Input", False),
 		"InOperation":UcsFactoryMeta("InOperation", "inOperation", "Xs:unsignedInt", "Version142b", "Input", False),
 		"InSensorName":UcsFactoryMeta("InSensorName", "inSensorName", "Xs:unsignedInt", "Version142b", "Input", False),
 		"InServerId":UcsFactoryMeta("InServerId", "inServerId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InSlotId":UcsFactoryMeta("InSlotId", "inSlotId", "Xs:unsignedInt", "Version142b", "Input", False),
 		"Meta":UcsFactoryMethodMeta("ApeSetApeSensorReading","apeSetApeSensorReading", "Version142b"),
 	},
 
@@ -387,6 +419,25 @@ _MethodFactoryMeta = {
 		"InConfig":UcsFactoryMeta("InConfig", "inConfig", "ConfigConfig", "Version142b", "Input", True),
 		"InSwId":UcsFactoryMeta("InSwId", "inSwId", "Xs:string", "Version142b", "Input", False),
 		"Meta":UcsFactoryMethodMeta("ApeSetSwitchInventory","apeSetSwitchInventory", "Version142b"),
+	},
+
+	"ApeSetVmediaMounts": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"InChassisId":UcsFactoryMeta("InChassisId", "inChassisId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InCount":UcsFactoryMeta("InCount", "inCount", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InServerInstanceId":UcsFactoryMeta("InServerInstanceId", "inServerInstanceId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InSlotId":UcsFactoryMeta("InSlotId", "inSlotId", "Xs:unsignedInt", "Version142b", "Input", False),
+		"InVMediaSet":UcsFactoryMeta("InVMediaSet", "inVMediaSet", "ConfigSet", "Version142b", "Input", True),
+		"Meta":UcsFactoryMethodMeta("ApeSetVmediaMounts","apeSetVmediaMounts", "Version142b"),
+	},
+
+	"ApeTriggerSwInv": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"InModel":UcsFactoryMeta("InModel", "inModel", "Xs:string", "Version142b", "Input", False),
+		"InSerial":UcsFactoryMeta("InSerial", "inSerial", "Xs:string", "Version142b", "Input", False),
+		"InSwId":UcsFactoryMeta("InSwId", "inSwId", "Xs:string", "Version142b", "Input", False),
+		"InVendor":UcsFactoryMeta("InVendor", "inVendor", "Xs:string", "Version142b", "Input", False),
+		"Meta":UcsFactoryMethodMeta("ApeTriggerSwInv","apeTriggerSwInv", "Version142b"),
 	},
 
 	"ApeUpdateApeFirmwareParamTable": {
@@ -432,15 +483,6 @@ _MethodFactoryMeta = {
 		"OutVnicIpv4PooledAddrConfig":UcsFactoryMeta("OutVnicIpv4PooledAddrConfig", "outVnicIpv4PooledAddrConfig", "ConfigSet", "Version142b", "Output", True),
 		"OutVnicIpv4ProfDerivedAddrConfig":UcsFactoryMeta("OutVnicIpv4ProfDerivedAddrConfig", "outVnicIpv4ProfDerivedAddrConfig", "ConfigSet", "Version142b", "Output", True),
 		"Meta":UcsFactoryMethodMeta("ComputeGetInventory","computeGetInventory", "Version142b"),
-	},
-
-	"ComputeSubscribe": {
-		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
-		"InCategory":UcsFactoryMeta("InCategory", "inCategory", "Xs:string", "Version142b", "Input", False),
-		"InPolicyMapSchema":UcsFactoryMeta("InPolicyMapSchema", "inPolicyMapSchema", "ConfigSet", "Version142b", "Input", True),
-		"InProvider":UcsFactoryMeta("InProvider", "inProvider", "Xs:string", "Version142b", "Input", False),
-		"InSchemaInfo":UcsFactoryMeta("InSchemaInfo", "inSchemaInfo", "ConfigSet", "Version142b", "Input", True),
-		"Meta":UcsFactoryMethodMeta("ComputeSubscribe","computeSubscribe", "Version142b"),
 	},
 
 	"ConfigCheckCompatibility": {
@@ -519,6 +561,14 @@ _MethodFactoryMeta = {
 		"Meta":UcsFactoryMethodMeta("ConfigConfRename","configConfRename", "Version142b"),
 	},
 
+	"ConfigEstimateConfMos": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"InConfigs":UcsFactoryMeta("InConfigs", "inConfigs", "ConfigMap", "Version142b", "Input", True),
+		"InHierarchical":UcsFactoryMeta("InHierarchical", "inHierarchical", "Xs:string", "Version142b", "Input", False),
+		"OutConfigs":UcsFactoryMeta("OutConfigs", "outConfigs", "ConfigMap", "Version142b", "Output", True),
+		"Meta":UcsFactoryMethodMeta("ConfigEstimateConfMos","configEstimateConfMos", "Version142b"),
+	},
+
 	"ConfigEstimateImpact": {
 		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
 		"InConfigs":UcsFactoryMeta("InConfigs", "inConfigs", "ConfigMap", "Version142b", "Input", True),
@@ -565,10 +615,20 @@ _MethodFactoryMeta = {
 		"Meta":UcsFactoryMethodMeta("ConfigFindPermitted","configFindPermitted", "Version142b"),
 	},
 
+	"ConfigFindStoragePackDependencies": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"Dn":UcsFactoryMeta("Dn", "dn", "ReferenceObject", "Version142b", "InputOutput", False),
+		"InStoragePackDns":UcsFactoryMeta("InStoragePackDns", "inStoragePackDns", "DnSet", "Version142b", "Input", True),
+		"OutConfigSet":UcsFactoryMeta("OutConfigSet", "outConfigSet", "ConfigSet", "Version142b", "Output", True),
+		"Meta":UcsFactoryMethodMeta("ConfigFindStoragePackDependencies","configFindStoragePackDependencies", "Version142b"),
+	},
+
 	"ConfigGetEstimateImpact": {
 		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
 		"InConfigs":UcsFactoryMeta("InConfigs", "inConfigs", "ConfigMap", "Version142b", "Input", True),
+		"InDeletedDns":UcsFactoryMeta("InDeletedDns", "inDeletedDns", "DnSet", "Version142b", "Input", True),
 		"InImpactAnalyzerId":UcsFactoryMeta("InImpactAnalyzerId", "inImpactAnalyzerId", "DateTime", "Version142b", "Input", False),
+		"InIsPolicyFullConfig":UcsFactoryMeta("InIsPolicyFullConfig", "inIsPolicyFullConfig", "Xs:string", "Version142b", "Input", False),
 		"InSourceConnectorId":UcsFactoryMeta("InSourceConnectorId", "inSourceConnectorId", "Xs:unsignedInt", "Version142b", "Input", False),
 		"OutAppImpactResponse":UcsFactoryMeta("OutAppImpactResponse", "outAppImpactResponse", "ConfigConfig", "Version142b", "Output", True),
 		"OutRetry":UcsFactoryMeta("OutRetry", "outRetry", "Xs:unsignedShort", "Version142b", "Output", False),
@@ -605,9 +665,19 @@ _MethodFactoryMeta = {
 		"InBladePackVersion":UcsFactoryMeta("InBladePackVersion", "inBladePackVersion", "Xs:string", "Version142b", "Input", False),
 		"InHostPackDns":UcsFactoryMeta("InHostPackDns", "inHostPackDns", "DnSet", "Version142b", "Input", True),
 		"InInfraPackVersion":UcsFactoryMeta("InInfraPackVersion", "inInfraPackVersion", "Xs:string", "Version142b", "Input", False),
+		"InMSeriesPackVersion":UcsFactoryMeta("InMSeriesPackVersion", "inMSeriesPackVersion", "Xs:string", "Version142b", "Input", False),
 		"InRackPackVersion":UcsFactoryMeta("InRackPackVersion", "inRackPackVersion", "Xs:string", "Version142b", "Input", False),
 		"OutConfigSet":UcsFactoryMeta("OutConfigSet", "outConfigSet", "ConfigSet", "Version142b", "Output", True),
 		"Meta":UcsFactoryMethodMeta("ConfigInstallAllImpact","configInstallAllImpact", "Version142b"),
+	},
+
+	"ConfigInstallStorageAllImpact": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"Dn":UcsFactoryMeta("Dn", "dn", "ReferenceObject", "Version142b", "InputOutput", False),
+		"InStoragePackDns":UcsFactoryMeta("InStoragePackDns", "inStoragePackDns", "DnSet", "Version142b", "Input", True),
+		"InStoragePackVersion":UcsFactoryMeta("InStoragePackVersion", "inStoragePackVersion", "Xs:string", "Version142b", "Input", False),
+		"OutConfigSet":UcsFactoryMeta("OutConfigSet", "outConfigSet", "ConfigSet", "Version142b", "Output", True),
+		"Meta":UcsFactoryMethodMeta("ConfigInstallStorageAllImpact","configInstallStorageAllImpact", "Version142b"),
 	},
 
 	"ConfigMoChangeEvent": {
@@ -888,6 +958,13 @@ _MethodFactoryMeta = {
 		"InTemplateType":UcsFactoryMeta("InTemplateType", "inTemplateType", "Xs:string", "Version142b", "Input", False),
 		"OutConfig":UcsFactoryMeta("OutConfig", "outConfig", "ConfigConfig", "Version142b", "Output", True),
 		"Meta":UcsFactoryMethodMeta("LsTemplatise","lsTemplatise", "Version142b"),
+	},
+
+	"MethodResolveVessel": {
+		"Cookie":UcsFactoryMeta("Cookie", "cookie", "Xs:string", "Version142b", "InputOutput", False),
+		"InStimuli":UcsFactoryMeta("InStimuli", "inStimuli", "MethodSet", "Version142b", "Input", True),
+		"OutStimuli":UcsFactoryMeta("OutStimuli", "outStimuli", "MethodSet", "Version142b", "Output", True),
+		"Meta":UcsFactoryMethodMeta("MethodResolveVessel","methodResolveVessel", "Version142b"),
 	},
 
 	"MethodVessel": {

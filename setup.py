@@ -11,8 +11,6 @@ if sys.version_info < (2, 4) or sys.version_info[0] == 3:
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),r"src/UcsSdk"))
 from Version import __version__
 
-name='UcsSdk'
-
 def is_package(path):
 	return (
 			os.path.isdir(path) and
@@ -32,6 +30,9 @@ def find_packages(path, base="" ):
 			packages.update(find_packages(dir, module_name))
 	return packages
 
+name='UcsSdk'
+files = ["UcsConfig.cfg", "resources/SyncMoConfig.xml"]
+
 setup(
 	name=name,
 	version=__version__,
@@ -42,7 +43,7 @@ setup(
 	license='LICENSE.txt',
 	packages=find_packages('src'),
 	package_dir = {'': 'src'},
-	package_data={'': ['resources/*.xml']},
+	package_data={'UcsSdk': files},
 	include_package_data = True,
 	zip_safe = False,
 	)
