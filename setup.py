@@ -2,8 +2,7 @@
 
 import sys
 import os
-from distutils.core import setup
-from distutils.errors import *
+from setuptools import setup
 
 if sys.version_info < (2, 4) or sys.version_info[0] == 3:
     raise DistutilsError("This package requires Python 2.4 or higher versions 2.x not Python3")
