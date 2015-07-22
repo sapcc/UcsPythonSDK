@@ -90,4 +90,7 @@ class UcsPower(object):
     def reboot(self):
         """Hard reset the power of this node.
            """
-        self.set_power_state(LsPower.CONST_STATE_HARD_RESET_IMMEDIATE)
+        if self.get_power_state() == LsPower.CONST_STATE_DOWN:
+            self.set_power_state(LsPower.CONST_STATE_UP)
+        else:
+            self.set_power_state(LsPower.CONST_STATE_HARD_RESET_IMMEDIATE)

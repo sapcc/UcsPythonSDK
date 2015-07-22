@@ -59,7 +59,7 @@ def generate_ucsm_handle(hostname, username, password):
 
 
 def get_managed_object(handle, class_id, params, inMo=None, in_heir=False,
-                       dump=True):
+                       dump=False):
     """Get the specified MO from UCS Manager.
 
         :param managed_object: MO classid
@@ -73,7 +73,7 @@ def get_managed_object(handle, class_id, params, inMo=None, in_heir=False,
 
 
 def get_resolve_class(handle, class_id,
-                      in_filter, in_heir=False, dump=YesOrNo.TRUE):
+                      in_filter, in_heir=False, dump=YesOrNo.FALSE):
     return handle.ConfigResolveClass(
         class_id, in_filter,
         inHierarchical=in_heir,
@@ -101,7 +101,7 @@ def config_managed_object(p_dn, p_class_id, class_id,
         result = handle.AddManagedObject(None, classId=class_id,
                                          params=mo_config,
                                          modifyPresent=True,
-                                         dumpXml=YesOrNo.TRUE)
+                                         dumpXml=YesOrNo.FALSE)
         return result
 
     except UcsException as ex:
