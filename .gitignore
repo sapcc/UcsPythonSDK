@@ -1,0 +1,6 @@
+dist/
+MANIFEST
+src/UcsSdk.egg-info
+build/
+*.pyc
+*.pyo
