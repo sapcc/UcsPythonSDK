@@ -57,7 +57,6 @@ setup(
 	cmdclass={'install': install},
 	packages=find_packages('src'),
 	package_dir = {'': 'src'},
-	package_data={'UcsSdk': files},
 	include_package_data = True,
 	zip_safe = False,
 	)
