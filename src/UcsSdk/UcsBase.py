@@ -1289,11 +1289,7 @@ def loadUcsConfig():
 		from functools import partial
 		import ssl
 
-		sslProtocolDict = {'SSLv2': ssl.PROTOCOL_SSLv2,
-							 'SSLv23': ssl.PROTOCOL_SSLv23,
-							 'SSLv3': ssl.PROTOCOL_SSLv3,
-							 'TLSv1': ssl.PROTOCOL_TLSv1
-							 }
+		sslProtocolDict = {'TLSv1': ssl.PROTOCOL_TLSv1}
 
 		ssl.wrap_socket = partial(ssl.wrap_socket, ssl_version=sslProtocolDict[sslProtocol])
 
