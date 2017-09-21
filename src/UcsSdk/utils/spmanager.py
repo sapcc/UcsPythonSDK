@@ -69,7 +69,6 @@ class BootPolicy(object):
         self.__org_dn = org_dn
         self.__boot_policy_dn = org_dn + "/boot-policy-" + boot_policy_name
         self.__boot_policy_cfg = {LsbootPolicy.NAME: boot_policy_name,
-                                  LsbootPolicy.PURPOSE: "operational",
                                   LsbootPolicy.REBOOT_ON_UPDATE: "no",
                                   LsbootPolicy.ENFORCE_VNIC_NAME: "no"
                                   }
